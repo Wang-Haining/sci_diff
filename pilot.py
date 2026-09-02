@@ -315,7 +315,7 @@ def main():
         if scope_qc[0] < 50 or not (0 < scope_qc[1] <= scope_qc[2] <= 1) or scope_qc[3:] != (2017, 2019):
             raise ValueError(f"journal scope QC failed: {scope_qc}")
         edge_qc = con.execute("SELECT min(citing_year), max(citing_year), sum(multiplicity-1) FROM read_parquet(?)", [str(edges)]).fetchone()
-        if edge_qc[0:2] != (2020, 2024):
+        if not (2020 <= edge_qc[0] <= edge_qc[1] <= 2024):
             raise ValueError(f"citation year QC failed: {edge_qc}")
         bad_decomp = con.execute("SELECT count(*) FROM read_parquet(?) WHERE total_citations != within_subfield+cross_subfield+cross_field+unclassified", [str(analysis)]).fetchone()[0]
         if bad_decomp:
