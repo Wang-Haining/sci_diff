@@ -163,6 +163,8 @@ def analyze_measure(df, measure, treatment_col, rng):
                          minlength=n_cells * 2).reshape(n_cells, 2)
         present = (ns[:, 0] > 0) & (ns[:, 1] > 0)
         weights = cell_weight[present]
+        if not present.any() or weights.sum() <= 0:
+            return None
         result = []
         for j in range(len(OUTCOMES)):
             ys = np.bincount(agg_arm_index, weights=sums[:, j] * mult,
@@ -173,11 +175,18 @@ def analyze_measure(df, measure, treatment_col, rng):
         return np.asarray(result)
 
     point = estimates(np.ones(len(journals)))
+    if point is None:
+        raise ValueError(f"expected observed common-support estimates for {measure}, got none")
     boot = np.empty((200, len(OUTCOMES)))
     for b in range(200):
-        sampled = rng.integers(0, len(journals), size=len(journals))
-        multiplicity = np.bincount(sampled, minlength=len(journals))
-        pair = estimates(multiplicity)
+        for _ in range(100):
+            sampled = rng.integers(0, len(journals), size=len(journals))
+            multiplicity = np.bincount(sampled, minlength=len(journals))
+            pair = estimates(multiplicity)
+            if pair is not None:
+                break
+        if pair is None:
+            raise RuntimeError(f"failed to draw a valid {measure} cluster bootstrap after 100 attempts")
         boot[b] = pair[:, 1] - pair[:, 0]
     coverage = len(kept) / len(d)
     rows = []
