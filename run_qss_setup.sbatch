@@ -12,6 +12,7 @@
 
 set -euo pipefail
 cd /home/g91p721/sci_diff
+export PIP_CACHE_DIR=/home/group/jasonclark/g91p721/sci_diff/pip_cache
 python3 -m venv --system-site-packages /home/group/jasonclark/g91p721/sci_diff/qss_venv
 source /home/group/jasonclark/g91p721/sci_diff/qss_venv/bin/activate
 python -m pip install --upgrade pip

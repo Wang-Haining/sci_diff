@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
+import importlib.metadata
 import json
 import shutil
 import subprocess
@@ -128,8 +129,19 @@ def write_run(stage, status, counts=None, extra=None):
         "seed": SEED,
         "git_commit": git_head(),
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "packages": {name: package_version(name) for name in (
+            "duckdb", "numpy", "pandas", "pyarrow", "scikit-learn", "scipy",
+            "lightgbm", "torch", "transformers", "adapters", "matplotlib",
+        )},
         "counts": counts or {},
         "extra": extra or {},
     }
     (ARTIFACTS / f"run_{stage}.json").write_text(json.dumps(payload, indent=2) + "\n")
     return payload
+
+
+def package_version(name):
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None

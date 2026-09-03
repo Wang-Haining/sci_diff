@@ -138,7 +138,8 @@ def main():
             raise ValueError(f"title+abstract embedding QC failed: {abstract_qc}")
         write_run("embed", "complete", {
             "title_embeddings": title_qc[0], "title_abstract_embeddings": abstract_qc[0],
-        }, {"model": "allenai/specter2_base+allenai/specter2", "world_size": world})
+        }, {"model": "allenai/specter2_base+allenai/specter2",
+            "base_commit": getattr(model.config, "_commit_hash", None), "world_size": world})
         check_budget()
     dist.barrier()
     dist.destroy_process_group()
