@@ -12,9 +12,9 @@ import torch.nn.functional as functional
 from adapters import AutoAdapterModel
 from transformers import AutoTokenizer
 
-from qss_common import EMBED_DIM, QSS_TMP, QSS_WORK, check_budget, log, reset_output, write_run
+from qss_common import EMBED_DIM, QSS_WORK, STAGED_INPUT, check_budget, log, reset_output, write_run
 
-INPUT = QSS_TMP / "embedding_input"
+INPUT = STAGED_INPUT
 TITLE_OUT = QSS_WORK / "embeddings_title"
 ABSTRACT_OUT = QSS_WORK / "embeddings_title_abstract"
 BATCH_TITLE = 512

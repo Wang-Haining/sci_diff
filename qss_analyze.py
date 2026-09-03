@@ -12,13 +12,13 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 
 from qss_common import (
-    ARTIFACTS, EMBED_DIM, QSS_TMP, QSS_WORK, RESULTS, SEED, check_budget, connect,
-    copy_query, log, reset_output, validate_snapshot, write_run,
+    ARTIFACTS, EMBED_DIM, QSS_WORK, RESULTS, SEED, STAGED_INPUT, check_budget,
+    connect, copy_query, log, reset_output, validate_snapshot, write_run,
 )
 
 TITLE = QSS_WORK / "embeddings_title"
 TITLE_ABSTRACT = QSS_WORK / "embeddings_title_abstract"
-EMBED_INPUT = QSS_TMP / "embedding_input"
+EMBED_INPUT = STAGED_INPUT
 FOCAL = QSS_WORK / "focal_base.parquet"
 EDGES = QSS_WORK / "citation_edges"
 CITING = QSS_WORK / "citing_metadata"

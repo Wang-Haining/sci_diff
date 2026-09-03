@@ -14,6 +14,7 @@ GROUP_ROOT = Path("/home/group/jasonclark")
 SNAPSHOT = GROUP_ROOT / "g91p721/openalex" / SNAPSHOT_DATE / "data/parquet"
 QSS_WORK = GROUP_ROOT / "g91p721/sci_diff/qss_v1"
 QSS_TMP = GROUP_ROOT / "g91p721/sci_diff/qss_tmp"
+STAGED_INPUT = QSS_TMP / "embedding_input"
 REPO = Path(__file__).resolve().parent
 RESULTS = REPO / "results" / "qss_v1"
 ARTIFACTS = REPO / "artifacts" / "qss_v1"
@@ -43,8 +44,9 @@ def tree_bytes(path):
 
 
 def check_budget():
-    used = tree_bytes(QSS_WORK)
-    temporary = tree_bytes(QSS_TMP)
+    staged = tree_bytes(STAGED_INPUT)
+    used = tree_bytes(QSS_WORK) + staged
+    temporary = tree_bytes(QSS_TMP) - staged
     free = shutil.disk_usage(GROUP_ROOT).free
     if used > WORK_CAP:
         raise RuntimeError(f"expected qss work <= {WORK_CAP}, got {used}")
@@ -52,7 +54,8 @@ def check_budget():
         raise RuntimeError(f"expected group free >= {MIN_FREE}, got {free}")
     if temporary > TMP_CAP:
         raise RuntimeError(f"expected qss temp <= {TMP_CAP}, got {temporary}")
-    log(f"storage qss_work={used:,} bytes qss_temp={temporary:,} bytes group_free={free:,} bytes")
+    log(f"storage persistent={used:,} bytes duckdb_temp={temporary:,} bytes "
+        f"group_free={free:,} bytes")
 
 
 def validate_snapshot():
