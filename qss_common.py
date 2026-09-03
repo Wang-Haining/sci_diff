@@ -69,7 +69,7 @@ def validate_snapshot():
     return manifest
 
 
-def connect(memory_limit="700GB", threads=32):
+def connect(memory_limit="650GB", threads=32):
     QSS_TMP.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
     con.execute(f"SET threads={threads}")

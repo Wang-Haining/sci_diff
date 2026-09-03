@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=sci-diff-qss-prepare
 #SBATCH --account=group-jasonclark
-#SBATCH --partition=priority
+#SBATCH --partition=fairshare
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=750G
+#SBATCH --mem=700G
 #SBATCH --time=3-00:00:00
 #SBATCH --output=/home/g91p721/logs/sci_diff_qss_prepare_%j.out
 #SBATCH --error=/home/g91p721/logs/sci_diff_qss_prepare_%j.err

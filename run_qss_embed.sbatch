@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=sci-diff-qss-embed
 #SBATCH --account=group-jasonclark
-#SBATCH --partition=gpupriority
+#SBATCH --partition=gpufairshare
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
