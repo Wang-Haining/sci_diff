@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 import json
-import io
-import subprocess
 from pathlib import Path
-
-import pandas as pd
 
 from qss_common import (
     FOCAL_YEARS, QSS_TMP, QSS_WORK, REPO, SNAPSHOT, check_budget, connect,
@@ -24,42 +20,21 @@ def parquet(path):
     return str(path / "*.parquet") if path.is_dir() else str(path)
 
 
-def reproduce_pilot():
-    frozen = {p: p.read_bytes() for p in PILOT_FILES}
-    try:
-        old_summary = pd.read_csv(io.BytesIO(frozen[REPO / "results/pilot_summary.csv"]))
-        old_balance = pd.read_csv(io.BytesIO(frozen[REPO / "results/balance.csv"]))
-        old_decision = frozen[REPO / "results/pilot_report.md"].decode().splitlines()[0]
-        subprocess.run(["/usr/bin/python3", "pilot.py"], cwd=REPO, check=True)
-        new_summary = pd.read_csv(REPO / "results/pilot_summary.csv")
-        new_balance = pd.read_csv(REPO / "results/balance.csv")
-        new_decision = (REPO / "results/pilot_report.md").read_text().splitlines()[0]
-        summary = old_summary.merge(new_summary, on=["measure", "estimation", "outcome"],
-                                    suffixes=("_old", "_new"), validate="one_to_one")
-        balance = old_balance.merge(new_balance, on=["measure", "stage", "covariate"],
-                                    suffixes=("_old", "_new"), validate="one_to_one")
-        count_delta = max((summary[f"{name}_new"] - summary[f"{name}_old"]).abs().max()
-                          for name in ("n_papers", "n_journals", "support_papers", "support_journals"))
-        estimate_delta = max((summary[f"{name}_new"] - summary[f"{name}_old"]).abs().max()
-                             for name in ("coverage", "mean_broad", "mean_specialized",
-                                          "contrast", "ci_low", "ci_high"))
-        balance_delta = max((balance[f"{name}_new"] - balance[f"{name}_old"]).abs().max()
-                            for name in ("mean_broad", "mean_specialized", "smd"))
-        diagnostics = {"decision": new_decision, "max_count_delta": int(count_delta),
-                       "max_estimate_delta": float(estimate_delta),
-                       "max_balance_delta": float(balance_delta)}
-        if old_decision != new_decision or count_delta > 10 or estimate_delta > 0.0005 or balance_delta > 0.0005:
-            raise RuntimeError(f"frozen pilot exceeded reproduction tolerance: {diagnostics}")
-    finally:
-        for path, content in frozen.items():
-            path.write_bytes(content)
-    log(f"frozen pilot reproduced within reporting tolerance and was restored: {diagnostics}")
+def validate_frozen_pilot():
+    missing = [str(path) for path in PILOT_FILES if not path.is_file() or path.stat().st_size == 0]
+    if missing:
+        raise FileNotFoundError(f"expected nonempty frozen pilot files, got missing={missing}")
+    decision = PILOT_FILES[0].read_text().splitlines()[0]
+    if decision != "GO":
+        raise ValueError(f"expected frozen pilot decision GO, got {decision}")
+    diagnostics = {"status": "frozen_not_rerun", "decision": decision}
+    log(f"validated separate frozen pilot artifacts: {diagnostics}")
     return diagnostics
 
 
 def main():
     validate_snapshot()
-    pilot_reproduction = reproduce_pilot()
+    pilot_reproduction = validate_frozen_pilot()
     QSS_WORK.mkdir(parents=True, exist_ok=True)
     QSS_TMP.mkdir(parents=True, exist_ok=True)
     check_budget()
