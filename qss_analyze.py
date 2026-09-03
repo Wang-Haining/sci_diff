@@ -262,7 +262,7 @@ def build_unestimated(con):
     pc = ",".join(f"s.{name}" for name in PC_COLS)
     query = f"""
         WITH candidate AS (
-          SELECT f.id,f.publication_year,f.publication_month,f.journal_id,f.journal_name,
+          SELECT f.id,f.work_type,f.publication_year,f.publication_month,f.journal_id,f.journal_name,
                  f.topic_id,f.subfield_id,f.field_id,f.reference_count,f.authors_count,
                  f.countries_count,f.institutions_count,s.semantic_cluster,{pc},
                  r.classified_n,r.reference_fields,
@@ -296,7 +296,7 @@ def build_unestimated(con):
           SELECT semantic_cluster,publication_year,journal_id,
                  any_value(semantic_title_similarity) AS semantic_title_similarity,
                  any_value(reference_field_hhi) AS reference_field_hhi
-          FROM candidate GROUP BY ALL
+          FROM candidate WHERE work_type='article' GROUP BY ALL
         ), semantic_ranks AS (
           SELECT *, ntile(4) OVER (PARTITION BY semantic_cluster,publication_year
                                   ORDER BY semantic_title_similarity,journal_id) AS semantic_q
@@ -315,14 +315,14 @@ def build_unestimated(con):
         ), arm_counts AS (
           SELECT semantic_cluster,publication_year,treatment,count(*) AS papers,
                  count(DISTINCT journal_id) AS journals
-          FROM assigned WHERE treatment IS NOT NULL GROUP BY ALL
+          FROM assigned WHERE treatment IS NOT NULL AND work_type='article' GROUP BY ALL
         ), valid AS (
           SELECT semantic_cluster,publication_year FROM arm_counts GROUP BY ALL
           HAVING count(*)=2 AND min(papers)>=20 AND min(journals)>=2
         ), ref_arm_counts AS (
           SELECT semantic_cluster,publication_year,reference_treatment,count(*) AS papers,
                  count(DISTINCT journal_id) AS journals
-          FROM assigned WHERE reference_treatment IS NOT NULL GROUP BY ALL
+          FROM assigned WHERE reference_treatment IS NOT NULL AND work_type='article' GROUP BY ALL
         ), ref_valid AS (
           SELECT semantic_cluster,publication_year FROM ref_arm_counts GROUP BY ALL
           HAVING count(*)=2 AND min(papers)>=20 AND min(journals)>=2
@@ -582,12 +582,12 @@ def main():
         missing = frame[COVARIATES + OUTCOME_COLS].isna().sum()
         raise ValueError(f"analysis variables contain missing values: {missing[missing.gt(0)].to_dict()}")
     rng = np.random.default_rng(SEED)
-    primary_frame = frame[frame.treatment.notna()].copy().reset_index(drop=True)
+    primary_frame = frame[frame.treatment.notna() & frame.work_type.eq("article")].copy().reset_index(drop=True)
     primary_frame["treatment"] = primary_frame.treatment.astype("int8")
     estimates, balance, propensity, support, ipw, supported, signals = fit_exposure(
         primary_frame, "treatment", PRIMARY_OUTCOMES, "semantic_title", rng,
     )
-    reference_frame = frame[frame.reference_treatment.notna()].copy()
+    reference_frame = frame[frame.reference_treatment.notna() & frame.work_type.eq("article")].copy()
     reference_frame["reference_treatment"] = reference_frame.reference_treatment.astype("int8")
     ref_estimates, ref_balance, _, _, _, _, _ = fit_exposure(
         reference_frame, "reference_treatment", ["within_subfield", "cross_field"],
@@ -595,8 +595,16 @@ def main():
     )
     estimates += ref_estimates
     balance += ref_balance
+    review_frame = frame[frame.treatment.notna() & frame.work_type.eq("review")].copy().reset_index(drop=True)
+    review_frame["treatment"] = review_frame.treatment.astype("int8")
+    review_estimates, review_balance, _, _, _, _, _ = fit_exposure(
+        review_frame, "treatment", ["total_citations", "within_subfield", "cross_field"],
+        "semantic_title_reviews", rng,
+    )
+    estimates += review_estimates
+    balance += review_balance
     estimates += h3_rows(supported, signals["cross_field"], rng)
-    estimates.append(h4_row(frame))
+    estimates.append(h4_row(frame[frame.work_type.eq("article")]))
 
     primary_frame["propensity"] = propensity
     primary_frame["common_support"] = support
@@ -643,6 +651,7 @@ def main():
     write_run("analyze", "complete", {
         "journal_year_scope": scope_n, "focal_semantics": semantics_n,
         "citation_outcomes": outcomes_n, "analysis": analysis_n,
+        "primary_articles": len(primary_frame), "reviews": len(review_frame),
         "support": int(support.sum()), "journals": int(frame.journal_id.nunique()),
     }, {"reliability": reliability, "abstract_reliability": abstract_reliability,
         "pca_variance": pca_variance, "cluster_inertia": cluster_inertia,

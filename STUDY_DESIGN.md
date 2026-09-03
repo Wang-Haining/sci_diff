@@ -67,6 +67,25 @@ positivity, and negligible interference. Failure of the prespecified measurement
 overlap, or balance gates automatically changes manuscript wording from effect to
 association; it does not trigger estimator shopping.
 
+## Causal graph
+
+The adjustment graph is fixed as follows. `C` denotes manuscript content and
+reference profile; `A` prior author history; `I` prior institution history; `J`
+prior journal prestige, size, language, and OA share; `S` journal specialization;
+`M` post-publication access and audience routing; and `Y` citation reach.
+
+```text
+C,A,I,J ──> S ──> M ──> Y
+│ │ │ │      └────────> Y
+└─┴─┴─┴────────────────> Y
+```
+
+`C`, `A`, `I`, and `J` are measured no later than `t-1` and adjusted. Focal-paper
+OA and other post-publication visibility variables belong to `M` and are not
+adjusted in the primary model. Residual manuscript quality and editorial selection
+remain possible unmeasured common causes of `S` and `Y`; the target-trial language
+does not make their absence empirically testable.
+
 ## Exposure measurement
 
 The primary score is the mean pairwise cosine similarity of unit-normalized

@@ -44,7 +44,7 @@ def main():
     counts = {}
 
     eligible = """
-        type='article' AND NOT COALESCE(is_xpac, false)
+        NOT COALESCE(is_xpac, false)
         AND NOT COALESCE(is_retracted, false)
         AND primary_location.is_published
         AND primary_location.source.type='journal'
@@ -65,7 +65,8 @@ def main():
 
     focal = QSS_WORK / "focal_base.parquet"
     counts["focal"] = copy_query(con, focal, f"""
-        SELECT id, title, publication_year, month(publication_date)::UTINYINT AS publication_month,
+        SELECT id, type AS work_type, title, publication_year,
+               month(publication_date)::UTINYINT AS publication_month,
                primary_location.source.id AS journal_id,
                primary_location.source.display_name AS journal_name,
                primary_topic.id AS topic_id, primary_topic.subfield.id AS subfield_id,
@@ -76,7 +77,8 @@ def main():
                {list_expr} AS author_ids, {inst_expr} AS institution_ids,
                {country_expr} AS country_codes
         FROM read_parquet('{works}')
-        WHERE publication_year BETWEEN 2015 AND 2020 AND language='en' AND {eligible}
+        WHERE publication_year BETWEEN 2015 AND 2020 AND language='en'
+          AND type IN ('article','review') AND {eligible}
     """)
 
     history = QSS_WORK / "history_base.parquet"
@@ -89,7 +91,7 @@ def main():
                referenced_works, COALESCE(open_access.is_oa, false) AS is_oa,
                language, counts_by_year
         FROM read_parquet('{works}')
-        WHERE publication_year BETWEEN 2012 AND 2019 AND {eligible}
+        WHERE publication_year BETWEEN 2012 AND 2019 AND type='article' AND {eligible}
     """)
 
     reference_ids = QSS_WORK / "reference_ids.parquet"
@@ -235,7 +237,11 @@ def main():
         CROSS JOIN unnest(c.referenced_works) u(cited_id)
         JOIN read_parquet('{parquet(focal)}') f ON u.cited_id=f.id
           AND c.publication_year BETWEEN f.publication_year AND f.publication_year+4
-        WHERE c.publication_year BETWEEN 2015 AND 2024 AND {eligible}
+        WHERE c.publication_year BETWEEN 2015 AND 2024 AND c.type='article'
+          AND NOT COALESCE(c.is_xpac, false) AND NOT COALESCE(c.is_retracted, false)
+          AND c.primary_location.is_published AND c.primary_location.source.type='journal'
+          AND c.primary_location.source.id IS NOT NULL
+          AND c.title IS NOT NULL AND trim(c.title)<>''
         GROUP BY c.id,f.id,c.publication_year
     """, per_thread=True)
 
