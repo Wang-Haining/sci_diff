@@ -4,7 +4,7 @@ from pathlib import Path
 
 from qss_common import (
     FOCAL_YEARS, QSS_TMP, QSS_WORK, REPO, SNAPSHOT, check_budget, connect,
-    copy_query, log, validate_snapshot, write_run,
+    copy_query, log, reset_output, validate_snapshot, write_run,
 )
 
 WORKS = str(SNAPSHOT / "works/updated_date=*/*.parquet")
