@@ -18,7 +18,7 @@ def main():
         "abstract_reliability": abstract_reliability,
         "pca_variance": pca_variance,
         "cluster_inertia": cluster_inertia,
-        "measurement_gate": reliability["spearman_brown"] >= 0.70,
+        "measurement_gate": bool(reliability["spearman_brown"] >= 0.70),
         "section_b_touched": False,
     })
     check_budget()
