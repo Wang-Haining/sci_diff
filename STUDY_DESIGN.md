@@ -1,7 +1,7 @@
 # Estimating the specialization effect of journals on the disciplinary reach of science
 
 **Design version:** qss_v2
-**Status:** PARTIALLY FROZEN
+**Status:** DIRTY QWEN3 SECTION B FROZEN 2026-09-03
 **Snapshot:** OpenAlex Parquet 2026-06-26
 **Seed:** 20260902
 
@@ -14,22 +14,17 @@ split-half reliability; 1,000 venue-free choice-set clusters; citation-edge
 extraction, deduplication and timing; and baseline covariates other than PCs from
 the independent outcome encoder. These artifacts may be produced immediately.
 
-**Section B — outcome and inference: NOT FROZEN.** No code may classify, inspect
-or summarize the 2015–2024 citing papers as near, intermediate or far, and no
-primary estimation may run, until all four items below have values, a separate
-freeze date and a recorded seed:
+**Section B — dirty outcome and inference: FROZEN 2026-09-03.** This exploratory
+run uses `Qwen/Qwen3-Embedding-0.6B` at commit
+`97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3`, without a prompt. The first 768
+Matryoshka dimensions are unit normalized. The taxonomy uses the 1,000,000
+lowest BLAKE2b hashes of `20260902|OpenAlex work ID` among English 2012-2014
+history titles for training and the next 250,000 for held-out calibration.
 
-1. candidate outcome encoders and revisions; pre-2015 training and held-out
-   sampling rules and sizes; blinded-pair sampling, raters, agreement statistic,
-   threshold and deterministic model-selection rule;
-2. focal-paper OOD exclusion, arm-specific reporting and downgrade threshold;
-3. the single-confounder Chernozhukov–Cinelli bound for the four correlated arm
-   means and its fixed worst-case tipping-curve combination rule;
-4. no preprint matching in this study; published title/abstract as a baseline
-   content proxy is an explicit limitation.
-
-The original OpenAlex field outcome and SPECTER2 semantic-distance outcome below
-are superseded as primary measures and may only be run after Section B is frozen.
+The dirty run deliberately does not wait for human validation and does not compare
+encoders. It is labeled exploratory throughout. Human validation, omitted-variable
+bounds, multilingual replication, sibling comparisons and event studies are deferred;
+none may be added after seeing this run and described as prespecified.
 
 ## Story and contribution
 
@@ -59,9 +54,9 @@ subsequent citations?
 4. Within a journal, do changes in specialization track changes in cross-field
    reach for otherwise comparable papers?
 
-The primary null is
-`ATE_cross_field - ATE_within_subfield = 0`; the directional alternative is less
-than zero. A null total-citation effect does not refute the primary hypothesis.
+The dirty primary null is
+`log(mu_far,1 / mu_near,1) - log(mu_far,0 / mu_near,0) = 0`; the directional
+alternative is less than zero. A null total-citation effect does not refute it.
 
 ## Target-trial emulation
 
@@ -79,12 +74,11 @@ than zero. A null total-citation effect does not refute the primary hypothesis.
   50% is excluded from the primary binary contrast.
 - **Follow-up:** incoming citations from journal articles published in `t` through
   `t+4`.
-- **Primary outcome:** pending Section B; it will be venue-free and will distinguish
-  near, intermediate, far and OOD/unclassified citing papers.
+- **Primary outcome:** external five-year citations classified by the venue-free
+  Qwen3 taxonomy as near, intermediate, far or unclassified.
 - **Primary estimand:** average treatment effect among papers retained in empirical
   common support, defined by out-of-fold propensity scores in `[0.05, 0.95]`.
-- **Effect scales:** pending Section B; the planned primary scale is the log ratio
-  of far-to-near marginal mean citation rates.
+- **Effect scale:** log ratio of far-to-near marginal mean citation rates.
 - **Clustering:** journal-level uncertainty throughout.
 
 The causal interpretation requires consistency, conditional exchangeability,
@@ -135,35 +129,34 @@ define 1,000 venue-free paper clusters. Clusters of 500
 and 2,000 and a 50-paper history threshold are sensitivity analyses. Split-half
 reliability of the primary score must be at least 0.70.
 
-## Outcomes and covariates (Section B draft; not frozen)
+## Outcomes and covariates (dirty Section B)
 
-All categorical citation outcomes retain an `unclassified` category. The complete
-decomposition is total, within-subfield, different-subfield/same-field,
-different-field, and unclassified. Two-year versions, any cross-field citation,
-and estimates that retain journal and author self-citations are secondary.
+One thousand Qwen3 leaf clusters are fitted to the pre-2015 training sample, then
+their paper-weighted centers are grouped into 32 macroclusters. Same leaf is `near`;
+different leaf in the same macrocluster is `intermediate`; different macrocluster
+is `far`. Non-English, missing-title and OOD citing papers are `unclassified`.
+Macrocluster-specific held-out P99 squared distance to the assigned leaf center is
+the OOD cutoff. Focal OOD papers are excluded from the primary estimate.
 
-Semantic reach is checked independently using cosine distance between focal and
-citing-paper SPECTER2 embeddings. Uncited papers receive zero semantic diffusion
-mass; mean citing distance is explicitly conditional on at least one citation.
+The exact external-citation decomposition is total = near + intermediate + far +
+unclassified after excluding same-journal and shared-author citations. Secondary
+outcomes are each component, any far citation and a 99.9%-winsorized routing ratio.
 
-Adjustment variables are fixed at or before publication: 32 embedding principal
-components, semantic cluster, year and month, reference count and reference-field
-entropy, author and institution counts, countries and international collaboration,
-author and institution works/citations through `t-1`, and the journal's historical
-size, annualized citation prestige, English share, and OA share. Focal-paper OA is
-not adjusted in the primary model because it may lie on the venue-to-reach path.
+Adjustment variables are fixed at or before publication: the existing 32 SPECTER2
+PCs, 32 Qwen3 PCs, semantic choice-set cluster, year and month, reference profile,
+team/country/institution composition, prior author and institution history, and
+the journal's prior size, prestige, English share and OA share. Journal ID,
+OpenAlex field/topic labels, focal OA and post-publication journal features are
+excluded. Published titles are an imperfect baseline-content proxy; preprint
+matching is not performed.
 
-## Estimation and gates (Section B draft; not frozen)
+## Estimation and gates (dirty Section B)
 
 Five journal-grouped folds provide out-of-fold nuisance predictions. LightGBM
-models the treatment probability and arm-specific outcomes; AIPW estimates arm
-means and contrasts. Journal-cluster influence-function intervals are primary and
-500 journal multiplier-bootstrap draws are the verification interval.
-
-Paper interdisciplinarity is reference-field entropy, examined by prespecified
-quartiles and a continuous modifier. Within-journal triangulation uses aggregated
-journal-by-semantic-cluster-by-year cells, alternating-projection fixed effects for
-journal and cluster-year, and journal-clustered uncertainty.
+models treatment and arm-specific outcomes; AIPW estimates the four correlated
+near/far arm means. The primary log routing ratio uses their joint paper-level
+influence function. Journal-cluster intervals and all 500 multiplier-bootstrap
+draws use the same journal weights across outcomes.
 
 Required gates are:
 
@@ -173,17 +166,22 @@ Required gates are:
 - at least 50% of eligible extreme-arm papers retained in propensity support;
 - all weighted absolute standardized mean differences below 0.10;
 - exact citation decomposition with missing classifications retained;
-- the primary estimate and contrast-of-effects replicated by at least one
-  independent exposure or outcome definition before claiming audience segmentation.
+- focal OOD exclusion-rate difference between arms at most 0.02;
+- classified citing-flow coverage at least 0.80 in each arm.
+
+Failure of a data, leakage, time-window or decomposition assertion stops the job.
+Failure of an inferential gate retains all estimates but changes wording to
+`exploratory association`. Even if every gate passes, this dirty run is not the
+human-validated final QSS analysis.
 
 ## Data contracts and reporting
 
-`journal_year_scope.parquet` contains journal ID, focal year, history N, three
-scope measures, split-half scores, prior prestige, prior OA share, and reliability
-flags. `analysis_dataset.parquet` contains the paper ID, baseline variables,
-treatment, fold, propensity, weights, and outcomes. `causal_estimates.csv` contains
-RQ, population, exposure, outcome, effect scale, estimate, interval, support, and
-gate status.
+`journal_year_scope.parquet` remains the frozen Section A exposure contract.
+`qwen3_semantics.parquet` contains leaf/macrocluster assignment, OOD status and 32
+Qwen3 PCs. `analysis_dataset.parquet` contains baseline variables, treatment,
+propensity, weights and outcomes. Exploratory outputs are `dirty_report.md`,
+`dirty_estimates.csv`, `dirty_gates.csv` and stage run manifests; they never
+overwrite a later final analysis.
 
 Every stage writes a `run.json` with code commit, input snapshot, packages, seed,
 row counts, sizes, and status. The 2020 pilot remains a separate frozen benchmark.

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=sci-diff-qss-analyze
+#SBATCH --job-name=sci-diff-dirty-analyze
 #SBATCH --account=group-jasonclark
 #SBATCH --partition=fairshare
 #SBATCH --nodes=1
@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=700G
 #SBATCH --time=3-00:00:00
-#SBATCH --output=/home/g91p721/logs/sci_diff_qss_analyze_%j.out
-#SBATCH --error=/home/g91p721/logs/sci_diff_qss_analyze_%j.err
+#SBATCH --output=/home/g91p721/logs/sci_diff_dirty_analyze_%j.out
+#SBATCH --error=/home/g91p721/logs/sci_diff_dirty_analyze_%j.err
 
 set -euo pipefail
 cd /home/g91p721/sci_diff
