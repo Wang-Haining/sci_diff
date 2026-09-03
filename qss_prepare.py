@@ -138,7 +138,7 @@ def main():
                  -sum((field_n::DOUBLE/n.classified_n)*ln(field_n::DOUBLE/n.classified_n)) AS reference_entropy,
                  CASE WHEN n.classified_n>1 THEN
                    sum(field_n*(field_n-1))::DOUBLE/(n.classified_n*(n.classified_n-1)) END AS reference_hhi
-          FROM c JOIN n USING (id) GROUP BY c.id
+          FROM c JOIN n USING (id) GROUP BY c.id, n.classified_n
         )
         SELECT n.id, n.reference_count, n.classified_n, n.reference_fields,
                COALESCE(h.reference_entropy, 0) AS reference_entropy,
