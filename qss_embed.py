@@ -27,16 +27,18 @@ def abstract_text(value):
     inverted = json.loads(value)
     if not isinstance(inverted, dict) or not inverted:
         raise ValueError(f"expected nonempty abstract JSON object, got {type(inverted).__name__}")
-    last = max(position for positions in inverted.values() for position in positions)
-    words = [None] * (last + 1)
+    words = {}
     for word, positions in inverted.items():
         for position in positions:
-            if words[position] is not None:
+            if not isinstance(position, int) or position < 0:
+                raise ValueError(f"invalid abstract token position {position!r}")
+            if position in words:
                 raise ValueError(f"duplicate abstract token position {position}")
             words[position] = word
-    if any(word is None for word in words):
-        raise ValueError("abstract inverted index has missing token positions")
-    return " ".join(words)
+    if not words:
+        raise ValueError("abstract inverted index contains no token positions")
+    missing_positions = max(words) + 1 - len(words)
+    return " ".join(words[position] for position in sorted(words)), missing_positions
 
 
 def arrow_table(ids, embeddings):
@@ -95,7 +97,7 @@ def main():
         pa.schema([("id", pa.string()), ("embedding", pa.list_(pa.float16(), EMBED_DIM))]),
         compression="zstd",
     )
-    title_n = abstract_n = 0
+    title_n = abstract_n = gap_rows = gap_positions = 0
     for batch in ds.dataset([str(p) for p in assigned], format="parquet").to_batches(
         columns=["id", "title", "abstract_inverted_index", "is_history"], batch_size=4096
     ):
@@ -108,8 +110,11 @@ def main():
         title_n += len(rows)
         selected = [row for row in rows if row["is_history"] and row["abstract_inverted_index"]]
         if selected:
-            texts = [row["title"] + tokenizer.sep_token + abstract_text(row["abstract_inverted_index"])
-                     for row in selected]
+            abstracts = [abstract_text(row["abstract_inverted_index"]) for row in selected]
+            texts = [row["title"] + tokenizer.sep_token + abstract[0]
+                     for row, abstract in zip(selected, abstracts)]
+            gap_rows += sum(abstract[1] > 0 for abstract in abstracts)
+            gap_positions += sum(abstract[1] for abstract in abstracts)
             abstract_writer.write_table(arrow_table(
                 [row["id"] for row in selected],
                 encode(model, tokenizer, texts, BATCH_ABSTRACT, device),
@@ -119,8 +124,11 @@ def main():
             log(f"rank={rank} title={title_n:,} title_abstract={abstract_n:,}")
     title_writer.close()
     abstract_writer.close()
-    log(f"rank={rank} complete title={title_n:,} title_abstract={abstract_n:,}")
+    log(f"rank={rank} complete title={title_n:,} title_abstract={abstract_n:,} "
+        f"abstract_gap_rows={gap_rows:,} abstract_gap_positions={gap_positions:,}")
     dist.barrier()
+    gap_counts = torch.tensor([gap_rows, gap_positions], dtype=torch.long, device=device)
+    dist.all_reduce(gap_counts, op=dist.ReduceOp.SUM)
     if rank == 0:
         import duckdb
         con = duckdb.connect()
@@ -143,6 +151,8 @@ def main():
             raise ValueError(f"title+abstract embedding QC failed: {abstract_qc}")
         write_run("embed", "complete", {
             "title_embeddings": title_qc[0], "title_abstract_embeddings": abstract_qc[0],
+            "abstract_gap_rows": int(gap_counts[0].item()),
+            "abstract_gap_positions": int(gap_counts[1].item()),
         }, {"model": "allenai/specter2_base+allenai/specter2",
             "base_commit": BASE_REVISION, "adapter_commit": ADAPTER_REVISION,
             "world_size": world})
