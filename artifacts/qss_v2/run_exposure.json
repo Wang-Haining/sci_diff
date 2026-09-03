@@ -1,0 +1,44 @@
+{
+  "design": "qss_v2",
+  "stage": "exposure",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "62676ea00a9cca0efbc4b8d900ecec648ca5277b",
+  "timestamp_utc": "2026-09-03T12:29:12.905964+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.18.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0",
+    "matplotlib": null
+  },
+  "counts": {
+    "journal_year_scope": 364110,
+    "focal_semantics": 19896656
+  },
+  "extra": {
+    "reliability": {
+      "pearson": 0.9705538907545793,
+      "spearman_brown": 0.9850569378571297,
+      "spearman": 0.9605650455173418,
+      "split_n": 90052
+    },
+    "abstract_reliability": {
+      "pearson": 0.9788915244741967,
+      "spearman_brown": 0.9893331821048594,
+      "spearman": 0.9754414554861124,
+      "split_n": 62781
+    },
+    "pca_variance": 0.5674843788146973,
+    "cluster_inertia": 108758.625,
+    "measurement_gate": true,
+    "section_b_touched": false
+  }
+}

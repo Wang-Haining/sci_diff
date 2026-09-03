@@ -1,0 +1,43 @@
+{
+  "design": "qss_v2",
+  "stage": "prepare",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "6cf904ff29410fd6e1cb441fc1249f6f5affbc79",
+  "timestamp_utc": "2026-09-03T07:30:25.855740+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.18.0",
+    "lightgbm": null,
+    "torch": null,
+    "transformers": null,
+    "adapters": null,
+    "matplotlib": null
+  },
+  "counts": {
+    "focal": 19896656,
+    "history": 26354956,
+    "reference_ids": 67925817,
+    "reference_lookup": 58601835,
+    "focal_reference_metrics": 19896656,
+    "journal_year_baseline": 364110,
+    "journal_year_reference_scope": 317105,
+    "focal_author_history": 18969439,
+    "focal_institution_history": 16258517,
+    "citation_edges": 176128357,
+    "citing_metadata": 22468626,
+    "embedding_input": 38197186
+  },
+  "extra": {
+    "author_count_mismatches": 1150446,
+    "pilot_reproduction": {
+      "status": "frozen_not_rerun",
+      "decision": "GO"
+    }
+  }
+}
