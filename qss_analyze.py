@@ -12,7 +12,7 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 
 from qss_common import (
-    ARTIFACTS, EMBED_DIM, QSS_WORK, RESULTS, SEED, STAGED_INPUT, check_budget,
+    ARTIFACTS, EMBED_DIM, QSS_WORK, RESULTS, SECTION_B_FROZEN, SEED, STAGED_INPUT, check_budget,
     connect, copy_query, log, reset_output, validate_snapshot, write_run,
 )
 
@@ -626,6 +626,8 @@ def h4_row(frame):
 
 
 def main():
+    if not SECTION_B_FROZEN:
+        raise RuntimeError("Section B outcome and inference contract is not frozen")
     validate_snapshot()
     check_budget()
     RESULTS.mkdir(parents=True, exist_ok=True)

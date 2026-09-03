@@ -12,13 +12,14 @@ import duckdb
 SNAPSHOT_DATE = "2026-06-26"
 GROUP_ROOT = Path("/home/group/jasonclark")
 SNAPSHOT = GROUP_ROOT / "g91p721/openalex" / SNAPSHOT_DATE / "data/parquet"
-QSS_WORK = GROUP_ROOT / "g91p721/sci_diff/qss_v1"
+QSS_WORK = GROUP_ROOT / "g91p721/sci_diff/qss_v2"
 QSS_TMP = GROUP_ROOT / "g91p721/sci_diff/qss_tmp"
 STAGED_INPUT = QSS_TMP / "embedding_input"
 REPO = Path(__file__).resolve().parent
-RESULTS = REPO / "results" / "qss_v1"
-ARTIFACTS = REPO / "artifacts" / "qss_v1"
+RESULTS = REPO / "results" / "qss_v2"
+ARTIFACTS = REPO / "artifacts" / "qss_v2"
 SEED = 20260902
+SECTION_B_FROZEN = False
 MIN_FREE = 1_500_000_000_000
 WORK_CAP = 200_000_000_000
 TMP_CAP = 400_000_000_000
@@ -125,7 +126,7 @@ def file_sha256(path):
 def write_run(stage, status, counts=None, extra=None):
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     payload = {
-        "design": "qss_v1",
+        "design": "qss_v2",
         "stage": stage,
         "status": status,
         "snapshot_date": SNAPSHOT_DATE,

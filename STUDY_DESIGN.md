@@ -1,10 +1,35 @@
 # Estimating the specialization effect of journals on the disciplinary reach of science
 
-**Design version:** qss_v1
-**Status:** FROZEN
-**Frozen:** 2026-09-02
+**Design version:** qss_v2
+**Status:** PARTIALLY FROZEN
 **Snapshot:** OpenAlex Parquet 2026-06-26
 **Seed:** 20260902
+
+## Two-stage freeze boundary
+
+**Section A — exposure and structural data: FROZEN 2026-09-03.** This section
+includes the snapshot and storage gates; focal and history windows; SPECTER2
+title embeddings at the pinned revisions; journal-year specialization and
+split-half reliability; 1,000 venue-free choice-set clusters; citation-edge
+extraction, deduplication and timing; and baseline covariates other than PCs from
+the independent outcome encoder. These artifacts may be produced immediately.
+
+**Section B — outcome and inference: NOT FROZEN.** No code may classify, inspect
+or summarize the 2015–2024 citing papers as near, intermediate or far, and no
+primary estimation may run, until all four items below have values, a separate
+freeze date and a recorded seed:
+
+1. candidate outcome encoders and revisions; pre-2015 training and held-out
+   sampling rules and sizes; blinded-pair sampling, raters, agreement statistic,
+   threshold and deterministic model-selection rule;
+2. focal-paper OOD exclusion, arm-specific reporting and downgrade threshold;
+3. the single-confounder Chernozhukov–Cinelli bound for the four correlated arm
+   means and its fixed worst-case tipping-curve combination rule;
+4. no preprint matching in this study; published title/abstract as a baseline
+   content proxy is an explicit limitation.
+
+The original OpenAlex field outcome and SPECTER2 semantic-distance outcome below
+are superseded as primary measures and may only be run after Section B is frozen.
 
 ## Story and contribution
 
@@ -54,12 +79,12 @@ than zero. A null total-citation effect does not refute the primary hypothesis.
   50% is excluded from the primary binary contrast.
 - **Follow-up:** incoming citations from journal articles published in `t` through
   `t+4`.
-- **Primary outcome:** external cross-field citations per paper, excluding citing
-  papers sharing an author or journal with the focal paper.
+- **Primary outcome:** pending Section B; it will be venue-free and will distinguish
+  near, intermediate, far and OOD/unclassified citing papers.
 - **Primary estimand:** average treatment effect among papers retained in empirical
   common support, defined by out-of-fold propensity scores in `[0.05, 0.95]`.
-- **Effect scales:** adjusted mean difference, adjusted mean ratio, and risk
-  difference for any cross-field citation.
+- **Effect scales:** pending Section B; the planned primary scale is the log ratio
+  of far-to-near marginal mean citation rates.
 - **Clustering:** journal-level uncertainty throughout.
 
 The causal interpretation requires consistency, conditional exchangeability,
@@ -110,7 +135,7 @@ define 1,000 venue-free paper clusters. Clusters of 500
 and 2,000 and a 50-paper history threshold are sensitivity analyses. Split-half
 reliability of the primary score must be at least 0.70.
 
-## Outcomes and covariates
+## Outcomes and covariates (Section B draft; not frozen)
 
 All categorical citation outcomes retain an `unclassified` category. The complete
 decomposition is total, within-subfield, different-subfield/same-field,
@@ -128,7 +153,7 @@ author and institution works/citations through `t-1`, and the journal's historic
 size, annualized citation prestige, English share, and OA share. Focal-paper OA is
 not adjusted in the primary model because it may lie on the venue-to-reach path.
 
-## Estimation and gates
+## Estimation and gates (Section B draft; not frozen)
 
 Five journal-grouped folds provide out-of-fold nuisance predictions. LightGBM
 models the treatment probability and arm-specific outcomes; AIPW estimates arm
