@@ -29,8 +29,8 @@ UNESTIMATED = QSS_WORK / "analysis_unestimated.parquet"
 ANALYSIS = QSS_WORK / "analysis_dataset.parquet"
 
 PC_COLS = [f"pc{i:02d}" for i in range(1, 33)]
-COVARIATES = PC_COLS + [
-    "publication_year", "publication_month", "semantic_cluster", "reference_count",
+NUMERIC_COVARIATES = PC_COLS + [
+    "reference_count",
     "classified_n", "reference_fields", "reference_entropy", "authors_count",
     "countries_count", "institutions_count", "international",
     "author_mean_prior_works", "author_max_prior_works",
@@ -39,13 +39,17 @@ COVARIATES = PC_COLS + [
     "institution_mean_prior_citations", "institution_max_prior_citations",
     "history_n", "prior_oa_share", "prior_english_share", "prior_prestige",
 ]
+CATEGORICAL_COVARIATES = ["publication_year", "publication_month", "semantic_cluster", "lead_country"]
+COVARIATES = NUMERIC_COVARIATES + CATEGORICAL_COVARIATES
 OUTCOME_COLS = [
     "total_citations", "within_subfield", "cross_subfield", "cross_field",
-    "unclassified", "any_citation", "any_cross_field",
+    "unclassified", "any_citation", "any_cross_field", "total_citations_2y",
+    "cross_field_2y", "semantic_diffusion_mass", "all_unique_citations",
 ]
 PRIMARY_OUTCOMES = [
     "total_citations", "within_subfield", "cross_subfield", "cross_field",
-    "unclassified", "any_citation", "any_cross_field",
+    "unclassified", "any_citation", "any_cross_field", "total_citations_2y",
+    "cross_field_2y", "semantic_diffusion_mass", "all_unique_citations",
 ]
 
 
@@ -212,7 +216,7 @@ def build_outcomes(con):
                       WHEN c.subfield_id=f.subfield_id THEN 'within_subfield'
                       WHEN c.field_id=f.field_id THEN 'cross_subfield'
                       ELSE 'cross_field' END AS citation_class,
-                 CASE WHEN ce.id IS NOT NULL THEN 1-list_inner_product(fe.embedding,ce.embedding) END AS semantic_distance
+                 CASE WHEN ce.id IS NOT NULL THEN greatest(0,1-list_inner_product(fe.embedding,ce.embedding)) END AS semantic_distance
           FROM read_parquet('{path_glob(EDGES)}') e
           JOIN read_parquet('{path_glob(FOCAL)}') f ON e.cited_id=f.id
           JOIN read_parquet('{path_glob(CITING)}') c ON e.citing_id=c.id
@@ -262,7 +266,8 @@ def build_unestimated(con):
     pc = ",".join(f"s.{name}" for name in PC_COLS)
     query = f"""
         WITH candidate AS (
-          SELECT f.id,f.work_type,f.publication_year,f.publication_month,f.journal_id,f.journal_name,
+          SELECT f.id,f.work_type,f.has_abstract,f.publication_year,f.publication_month,
+                 f.journal_id,f.journal_name,f.lead_country,
                  f.topic_id,f.subfield_id,f.field_id,f.reference_count,f.authors_count,
                  f.countries_count,f.institutions_count,s.semantic_cluster,{pc},
                  r.classified_n,r.reference_fields,
@@ -295,7 +300,10 @@ def build_unestimated(con):
         ), choices AS (
           SELECT semantic_cluster,publication_year,journal_id,
                  any_value(semantic_title_similarity) AS semantic_title_similarity,
-                 any_value(reference_field_hhi) AS reference_field_hhi
+                 any_value(semantic_abstract_similarity) AS semantic_abstract_similarity,
+                 any_value(semantic_abstract_n) AS semantic_abstract_n,
+                 any_value(reference_field_hhi) AS reference_field_hhi,
+                 any_value(topic_hhi) AS topic_hhi,any_value(topic_entropy) AS topic_entropy
           FROM candidate WHERE work_type='article' GROUP BY ALL
         ), semantic_ranks AS (
           SELECT *, ntile(4) OVER (PARTITION BY semantic_cluster,publication_year
@@ -306,12 +314,29 @@ def build_unestimated(con):
                  ntile(4) OVER (PARTITION BY semantic_cluster,publication_year
                                 ORDER BY reference_field_hhi,journal_id) AS reference_q
           FROM choices WHERE reference_field_hhi IS NOT NULL
+        ), abstract_ranks AS (
+          SELECT semantic_cluster,publication_year,journal_id,
+                 ntile(4) OVER (PARTITION BY semantic_cluster,publication_year
+                                ORDER BY semantic_abstract_similarity,journal_id) AS abstract_q
+          FROM choices WHERE semantic_abstract_n>=100
+        ), topic_ranks AS (
+          SELECT semantic_cluster,publication_year,journal_id,
+                 ntile(4) OVER (PARTITION BY semantic_cluster,publication_year
+                                ORDER BY topic_hhi,journal_id) AS topic_hhi_q,
+                 ntile(4) OVER (PARTITION BY semantic_cluster,publication_year
+                                ORDER BY topic_entropy,journal_id) AS topic_entropy_q
+          FROM choices WHERE topic_hhi IS NOT NULL AND topic_entropy IS NOT NULL
         ), assigned AS (
           SELECT c.*,CASE WHEN semantic_q=1 THEN 0 WHEN semantic_q=4 THEN 1 END AS treatment,
                      CASE WHEN reference_field_hhi IS NOT NULL AND reference_q=1 THEN 0
-                          WHEN reference_field_hhi IS NOT NULL AND reference_q=4 THEN 1 END AS reference_treatment
+                          WHEN reference_field_hhi IS NOT NULL AND reference_q=4 THEN 1 END AS reference_treatment,
+                     CASE WHEN abstract_q=1 THEN 0 WHEN abstract_q=4 THEN 1 END AS abstract_treatment,
+                     CASE WHEN topic_hhi_q=1 THEN 0 WHEN topic_hhi_q=4 THEN 1 END AS topic_hhi_treatment,
+                     CASE WHEN topic_entropy_q=1 THEN 1 WHEN topic_entropy_q=4 THEN 0 END AS topic_entropy_treatment
           FROM candidate c JOIN semantic_ranks USING (semantic_cluster,publication_year,journal_id)
           LEFT JOIN reference_ranks USING (semantic_cluster,publication_year,journal_id)
+          LEFT JOIN abstract_ranks USING (semantic_cluster,publication_year,journal_id)
+          LEFT JOIN topic_ranks USING (semantic_cluster,publication_year,journal_id)
         ), arm_counts AS (
           SELECT semantic_cluster,publication_year,treatment,count(*) AS papers,
                  count(DISTINCT journal_id) AS journals
@@ -326,11 +351,38 @@ def build_unestimated(con):
         ), ref_valid AS (
           SELECT semantic_cluster,publication_year FROM ref_arm_counts GROUP BY ALL
           HAVING count(*)=2 AND min(papers)>=20 AND min(journals)>=2
+        ), abstract_arm_counts AS (
+          SELECT semantic_cluster,publication_year,abstract_treatment,count(*) AS papers,
+                 count(DISTINCT journal_id) AS journals FROM assigned
+          WHERE abstract_treatment IS NOT NULL AND work_type='article' AND has_abstract GROUP BY ALL
+        ), abstract_valid AS (
+          SELECT semantic_cluster,publication_year FROM abstract_arm_counts GROUP BY ALL
+          HAVING count(*)=2 AND min(papers)>=20 AND min(journals)>=2
+        ), topic_hhi_arm_counts AS (
+          SELECT semantic_cluster,publication_year,topic_hhi_treatment,count(*) AS papers,
+                 count(DISTINCT journal_id) AS journals FROM assigned
+          WHERE topic_hhi_treatment IS NOT NULL AND work_type='article' GROUP BY ALL
+        ), topic_hhi_valid AS (
+          SELECT semantic_cluster,publication_year FROM topic_hhi_arm_counts GROUP BY ALL
+          HAVING count(*)=2 AND min(papers)>=20 AND min(journals)>=2
+        ), topic_entropy_arm_counts AS (
+          SELECT semantic_cluster,publication_year,topic_entropy_treatment,count(*) AS papers,
+                 count(DISTINCT journal_id) AS journals FROM assigned
+          WHERE topic_entropy_treatment IS NOT NULL AND work_type='article' GROUP BY ALL
+        ), topic_entropy_valid AS (
+          SELECT semantic_cluster,publication_year FROM topic_entropy_arm_counts GROUP BY ALL
+          HAVING count(*)=2 AND min(papers)>=20 AND min(journals)>=2
         )
-        SELECT a.* EXCLUDE(reference_treatment),
-               CASE WHEN rv.semantic_cluster IS NOT NULL THEN a.reference_treatment END AS reference_treatment
+        SELECT a.* EXCLUDE(reference_treatment,abstract_treatment,topic_hhi_treatment,topic_entropy_treatment),
+               CASE WHEN rv.semantic_cluster IS NOT NULL THEN a.reference_treatment END AS reference_treatment,
+               CASE WHEN av.semantic_cluster IS NOT NULL AND a.has_abstract THEN a.abstract_treatment END AS abstract_treatment,
+               CASE WHEN hv.semantic_cluster IS NOT NULL THEN a.topic_hhi_treatment END AS topic_hhi_treatment,
+               CASE WHEN ev.semantic_cluster IS NOT NULL THEN a.topic_entropy_treatment END AS topic_entropy_treatment
         FROM assigned a JOIN valid USING (semantic_cluster,publication_year)
         LEFT JOIN ref_valid rv USING (semantic_cluster,publication_year)
+        LEFT JOIN abstract_valid av USING (semantic_cluster,publication_year)
+        LEFT JOIN topic_hhi_valid hv USING (semantic_cluster,publication_year)
+        LEFT JOIN topic_entropy_valid ev USING (semantic_cluster,publication_year)
     """
     return copy_query(con, UNESTIMATED, query)
 
@@ -347,7 +399,7 @@ def weighted_moments(values, weights):
 def balance_table(frame, treatment, weights, exposure):
     rows = []
     for stage, stage_weights in [("raw", np.ones(len(frame))), ("weighted", weights)]:
-        for covariate in COVARIATES:
+        for covariate in NUMERIC_COVARIATES:
             values = frame[covariate].to_numpy(dtype=float)
             m0, v0 = weighted_moments(values[treatment == 0], stage_weights[treatment == 0])
             m1, v1 = weighted_moments(values[treatment == 1], stage_weights[treatment == 1])
@@ -363,6 +415,20 @@ def balance_table(frame, treatment, weights, exposure):
                 rows.append({"exposure": exposure, "stage": stage,
                              "covariate": covariate + "__missing", "mean_broad": q0,
                              "mean_specialized": q1, "smd": (q1 - q0) / scale if scale else 0.0})
+        for covariate in CATEGORICAL_COVARIATES:
+            series = frame[covariate]
+            levels = list(pd.unique(series.dropna()))
+            if series.isna().any():
+                levels.append(None)
+            for level in levels:
+                values = (series.isna() if level is None else series.eq(level)).to_numpy(dtype=float)
+                m0, v0 = weighted_moments(values[treatment == 0], stage_weights[treatment == 0])
+                m1, v1 = weighted_moments(values[treatment == 1], stage_weights[treatment == 1])
+                scale = math.sqrt((v0 + v1) / 2)
+                label = "missing" if level is None else str(level)
+                rows.append({"exposure": exposure, "stage": stage,
+                             "covariate": f"{covariate}={label}", "mean_broad": m0,
+                             "mean_specialized": m1, "smd": (m1 - m0) / scale if scale else 0.0})
     return rows
 
 
@@ -385,7 +451,7 @@ def fit_exposure(frame, treatment_col, outcomes, exposure, rng):
     if set(np.unique(treatment)) != {0, 1}:
         raise ValueError(f"expected {exposure} arms 0 and 1, got {np.unique(treatment)}")
     x = frame[COVARIATES].copy()
-    for column in ["publication_year", "publication_month", "semantic_cluster"]:
+    for column in CATEGORICAL_COVARIATES:
         x[column] = x[column].astype("category")
     propensity = np.empty(len(frame), dtype=np.float32)
     predictions = {outcome: [np.empty(len(frame), dtype=np.float32),
@@ -441,7 +507,9 @@ def fit_exposure(frame, treatment_col, outcomes, exposure, rng):
         se, low, high, boot_low, boot_high = clustered_interval(
             diff_signal, d.journal_id, difference, rng,
         )
-        rows.append({"rq": "RQ1" if outcome in ("total_citations", "any_citation") else "RQ2",
+        rq = "RQ1" if outcome in ("total_citations", "total_citations_2y",
+                                  "all_unique_citations", "any_citation") else "RQ2"
+        rows.append({"rq": rq,
                      "estimand": "common-support ATE", "population": exposure,
                      "exposure": exposure, "outcome": outcome, "scale": "absolute",
                      "mean_broad": mu0, "mean_specialized": mu1, "estimate": difference,
@@ -454,7 +522,7 @@ def fit_exposure(frame, treatment_col, outcomes, exposure, rng):
             se, low, high, boot_low, boot_high = clustered_interval(
                 100 * (ratio_signal - 1), d.journal_id, 100 * (ratio - 1), rng,
             )
-            rows.append({"rq": "RQ1" if outcome == "total_citations" else "RQ2",
+            rows.append({"rq": rq,
                          "estimand": "common-support ATE", "population": exposure,
                          "exposure": exposure, "outcome": outcome, "scale": "relative_percent",
                          "mean_broad": mu0, "mean_specialized": mu1,
@@ -578,8 +646,9 @@ def main():
     frame = con.execute("SELECT * FROM read_parquet(?)", [str(UNESTIMATED)]).df()
     if len(frame) != analysis_n:
         raise ValueError(f"expected analysis rows={analysis_n}, got {len(frame)}")
-    if frame[COVARIATES + OUTCOME_COLS].isna().any().any():
-        missing = frame[COVARIATES + OUTCOME_COLS].isna().sum()
+    required = NUMERIC_COVARIATES + ["publication_year", "publication_month", "semantic_cluster"] + OUTCOME_COLS
+    if frame[required].isna().any().any():
+        missing = frame[required].isna().sum()
         raise ValueError(f"analysis variables contain missing values: {missing[missing.gt(0)].to_dict()}")
     rng = np.random.default_rng(SEED)
     primary_frame = frame[frame.treatment.notna() & frame.work_type.eq("article")].copy().reset_index(drop=True)
@@ -587,7 +656,7 @@ def main():
     estimates, balance, propensity, support, ipw, supported, signals = fit_exposure(
         primary_frame, "treatment", PRIMARY_OUTCOMES, "semantic_title", rng,
     )
-    reference_frame = frame[frame.reference_treatment.notna() & frame.work_type.eq("article")].copy()
+    reference_frame = frame[frame.reference_treatment.notna() & frame.work_type.eq("article")].copy().reset_index(drop=True)
     reference_frame["reference_treatment"] = reference_frame.reference_treatment.astype("int8")
     ref_estimates, ref_balance, _, _, _, _, _ = fit_exposure(
         reference_frame, "reference_treatment", ["within_subfield", "cross_field"],
@@ -595,6 +664,20 @@ def main():
     )
     estimates += ref_estimates
     balance += ref_balance
+    sensitivity_counts = {}
+    for treatment_col, exposure in [
+        ("abstract_treatment", "semantic_title_abstract"),
+        ("topic_hhi_treatment", "openalex_topic_hhi"),
+        ("topic_entropy_treatment", "openalex_topic_entropy"),
+    ]:
+        sensitivity = frame[frame[treatment_col].notna() & frame.work_type.eq("article")].copy().reset_index(drop=True)
+        sensitivity[treatment_col] = sensitivity[treatment_col].astype("int8")
+        more_estimates, more_balance, _, _, _, _, _ = fit_exposure(
+            sensitivity, treatment_col, ["within_subfield", "cross_field"], exposure, rng,
+        )
+        estimates += more_estimates
+        balance += more_balance
+        sensitivity_counts[exposure] = len(sensitivity)
     review_frame = frame[frame.treatment.notna() & frame.work_type.eq("review")].copy().reset_index(drop=True)
     review_frame["treatment"] = review_frame.treatment.astype("int8")
     review_estimates, review_balance, _, _, _, _, _ = fit_exposure(
@@ -624,15 +707,19 @@ def main():
     ref_cross = reference.loc[reference.outcome.eq("cross_field")].iloc[0]
     ref_contrast = reference.loc[reference.outcome.eq("cross_field_minus_within_subfield")].iloc[0]
     gate = {
-        "measurement": reliability["spearman_brown"] >= 0.70,
-        "support": primary_cross.support >= 0.50,
-        "balance": max_smd["semantic_title"] < 0.10,
-        "replication_support_balance": ref_cross.support >= 0.50 and max_smd["reference_field"] < 0.10,
-        "primary_direction": primary_cross.estimate < 0 and primary_contrast.estimate < 0,
-        "independent_replication": ref_cross.estimate < 0 and ref_contrast.estimate < 0,
+        "causal_measurement_reliability": reliability["spearman_brown"] >= 0.70,
+        "causal_common_support": primary_cross.support >= 0.50,
+        "causal_covariate_balance": max_smd["semantic_title"] < 0.10,
+        "causal_independent_measurement": (ref_cross.support >= 0.50 and
+                                            max_smd["reference_field"] < 0.10),
+        "claim_primary_direction": primary_cross.estimate < 0 and primary_contrast.estimate < 0,
+        "claim_independent_replication": ref_cross.estimate < 0 and ref_contrast.estimate < 0,
     }
-    causal_wording = all(gate.values())
-    estimates["diagnostic_status"] = "pass" if causal_wording else "association_only"
+    causal_wording = all(value for key, value in gate.items() if key.startswith("causal_"))
+    audience_claim = causal_wording and all(
+        value for key, value in gate.items() if key.startswith("claim_")
+    )
+    estimates["diagnostic_status"] = "causal" if causal_wording else "association_only"
     estimates.to_csv(RESULTS / "causal_estimates.csv", index=False)
     balance.to_csv(RESULTS / "balance.csv", index=False)
     pd.DataFrame([{"gate": key, "passed": value} for key, value in gate.items()]).to_csv(
@@ -652,14 +739,17 @@ def main():
         "journal_year_scope": scope_n, "focal_semantics": semantics_n,
         "citation_outcomes": outcomes_n, "analysis": analysis_n,
         "primary_articles": len(primary_frame), "reviews": len(review_frame),
+        **sensitivity_counts,
         "support": int(support.sum()), "journals": int(frame.journal_id.nunique()),
     }, {"reliability": reliability, "abstract_reliability": abstract_reliability,
         "pca_variance": pca_variance, "cluster_inertia": cluster_inertia,
         "max_weighted_smd": max_smd.to_dict(), "gates": gate,
-        "wording": "causal" if causal_wording else "association"})
+        "wording": "causal" if causal_wording else "association",
+        "audience_segmentation_claim": audience_claim})
     check_budget()
     log(f"analysis complete rows={analysis_n:,} support={support.sum():,} "
-        f"max_smd={max_smd.to_dict()} wording={'causal' if causal_wording else 'association'}")
+        f"max_smd={max_smd.to_dict()} wording={'causal' if causal_wording else 'association'} "
+        f"audience_claim={audience_claim}")
 
 
 if __name__ == "__main__":

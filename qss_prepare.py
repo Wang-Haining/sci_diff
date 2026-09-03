@@ -62,10 +62,16 @@ def main():
         list_filter(list_distinct(flatten(list_transform(authorships, a -> a.countries))),
                     x -> x IS NOT NULL)
     """.strip()
+    lead_country_expr = """
+        list_extract(list_filter(flatten(list_transform(authorships, a -> a.countries)),
+                                 x -> x IS NOT NULL), 1)
+    """.strip()
 
     focal = QSS_WORK / "focal_base.parquet"
     counts["focal"] = copy_query(con, focal, f"""
-        SELECT id, type AS work_type, title, publication_year,
+        SELECT id, type AS work_type, title,
+               (abstract_inverted_index IS NOT NULL AND trim(abstract_inverted_index) NOT IN ('','{{}}')) AS has_abstract,
+               publication_year,
                month(publication_date)::UTINYINT AS publication_month,
                primary_location.source.id AS journal_id,
                primary_location.source.display_name AS journal_name,
@@ -75,7 +81,7 @@ def main():
                countries_distinct_count AS countries_count,
                institutions_distinct_count AS institutions_count,
                {list_expr} AS author_ids, {inst_expr} AS institution_ids,
-               {country_expr} AS country_codes
+               {country_expr} AS country_codes, {lead_country_expr} AS lead_country
         FROM read_parquet('{works}')
         WHERE publication_year BETWEEN 2015 AND 2020 AND language='en'
           AND type IN ('article','review') AND {eligible}
@@ -97,9 +103,9 @@ def main():
     reference_ids = QSS_WORK / "reference_ids.parquet"
     counts["reference_ids"] = copy_query(con, reference_ids, f"""
         SELECT DISTINCT ref_id FROM (
-          SELECT unnest(referenced_works) AS ref_id FROM read_parquet('{parquet(focal)}')
+          SELECT unnest(list_distinct(referenced_works)) AS ref_id FROM read_parquet('{parquet(focal)}')
           UNION ALL
-          SELECT unnest(referenced_works) AS ref_id FROM read_parquet('{parquet(history)}')
+          SELECT unnest(list_distinct(referenced_works)) AS ref_id FROM read_parquet('{parquet(history)}')
         ) WHERE ref_id IS NOT NULL
     """, per_thread=True)
 
@@ -117,7 +123,7 @@ def main():
         WITH edges AS (
           SELECT f.id, f.reference_count, l.field_id
           FROM read_parquet('{parquet(focal)}') f
-          LEFT JOIN unnest(f.referenced_works) u(ref_id) ON true
+          LEFT JOIN unnest(list_distinct(f.referenced_works)) u(ref_id) ON true
           LEFT JOIN read_parquet('{parquet(lookup)}') l ON u.ref_id=l.id
         ), n AS (
           SELECT id, reference_count, count(field_id) AS classified_n,
@@ -175,7 +181,7 @@ def main():
           SELECT y.focal_year, h.journal_id, l.field_id, count(*) AS n_field
           FROM focal_years y JOIN read_parquet('{parquet(history)}') h
             ON h.publication_year BETWEEN y.focal_year-3 AND y.focal_year-1
-          CROSS JOIN unnest(h.referenced_works) u(ref_id)
+          CROSS JOIN unnest(list_distinct(h.referenced_works)) u(ref_id)
           JOIN read_parquet('{parquet(lookup)}') l ON u.ref_id=l.id
           WHERE l.field_id IS NOT NULL GROUP BY ALL
         ), z AS (
@@ -241,7 +247,6 @@ def main():
           AND NOT COALESCE(c.is_xpac, false) AND NOT COALESCE(c.is_retracted, false)
           AND c.primary_location.is_published AND c.primary_location.source.type='journal'
           AND c.primary_location.source.id IS NOT NULL
-          AND c.title IS NOT NULL AND trim(c.title)<>''
         GROUP BY c.id,f.id,c.publication_year
     """, per_thread=True)
 

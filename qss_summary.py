@@ -18,8 +18,10 @@ def main():
     run = json.loads((ARTIFACTS / "run_analyze.json").read_text())
     if estimates.empty or gates.empty:
         raise ValueError(f"expected nonempty estimates and gates, got {len(estimates)}, {len(gates)}")
-    passed = bool(gates.passed.all())
-    decision = "CAUSAL WORDING ELIGIBLE" if passed else "ASSOCIATION ONLY"
+    causal = run["extra"]["wording"] == "causal"
+    audience = bool(run["extra"]["audience_segmentation_claim"])
+    decision = ("AUDIENCE-SEGMENTATION CLAIM SUPPORTED" if audience else
+                "CAUSAL ESTIMATE; PRIMARY CLAIM NOT SUPPORTED" if causal else "ASSOCIATION ONLY")
     primary = estimates[(estimates.exposure.eq("semantic_title")) &
                         (estimates.scale.eq("absolute"))]
     replication = estimates[(estimates.exposure.eq("reference_field")) &
