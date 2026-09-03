@@ -242,7 +242,7 @@ def main():
     citing = QSS_WORK / "citing_metadata.parquet"
     counts["citing_metadata"] = copy_query(con, citing, f"""
         WITH ids AS (SELECT DISTINCT citing_id FROM read_parquet('{parquet(edges)}'))
-        SELECT c.id, c.title, c.abstract_inverted_index, c.language, c.publication_year,
+        SELECT c.id, c.title, c.language, c.publication_year,
                c.primary_location.source.id AS journal_id,
                c.primary_topic.subfield.id AS subfield_id,
                c.primary_topic.field.id AS field_id, {list_expr} AS author_ids
@@ -253,15 +253,18 @@ def main():
     counts["embedding_input"] = copy_query(con, embed_input, f"""
         SELECT id, any_value(title) AS title,
                any_value(abstract_inverted_index) FILTER (WHERE role='history') AS abstract_inverted_index,
+               any_value(journal_id) FILTER (WHERE role='history') AS history_journal_id,
+               any_value(publication_year) FILTER (WHERE role='history') AS history_publication_year,
                bool_or(role='history') AS is_history, bool_or(role='focal') AS is_focal,
                bool_or(role='citing') AS is_citing
         FROM (
-          SELECT id,title,abstract_inverted_index,'history' AS role FROM read_parquet('{parquet(history)}')
+          SELECT id,title,abstract_inverted_index,journal_id,publication_year,'history' AS role
+          FROM read_parquet('{parquet(history)}')
           WHERE title IS NOT NULL
           UNION ALL
-          SELECT id,title,NULL,'focal' FROM read_parquet('{parquet(focal)}')
+          SELECT id,title,NULL,journal_id,publication_year,'focal' FROM read_parquet('{parquet(focal)}')
           UNION ALL
-          SELECT id,title,abstract_inverted_index,'citing' FROM read_parquet('{parquet(citing)}')
+          SELECT id,title,NULL,journal_id,publication_year,'citing' FROM read_parquet('{parquet(citing)}')
           WHERE language='en' AND title IS NOT NULL AND trim(title)<>''
         ) GROUP BY id
     """, per_thread=True)
@@ -286,6 +289,9 @@ def main():
     """).fetchone()[0]
     if windows:
         raise ValueError(f"expected zero citation-window violations, got {windows}")
+    for transient in (history, reference_ids, lookup):
+        reset_output(transient)
+        log(f"removed consumed intermediate {transient}")
     write_run("prepare", "complete", counts, {"author_count_mismatches": qc[2]})
     check_budget()
     log("prepare complete " + json.dumps(counts, sort_keys=True))

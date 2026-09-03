@@ -18,8 +18,8 @@ from qss_common import (
 
 TITLE = QSS_WORK / "embeddings_title"
 TITLE_ABSTRACT = QSS_WORK / "embeddings_title_abstract"
+EMBED_INPUT = QSS_TMP / "embedding_input"
 FOCAL = QSS_WORK / "focal_base.parquet"
-HISTORY = QSS_WORK / "history_base.parquet"
 EDGES = QSS_WORK / "citation_edges"
 CITING = QSS_WORK / "citing_metadata"
 SCOPE = QSS_WORK / "journal_year_scope.parquet"
@@ -60,11 +60,12 @@ def vectors(column):
 
 def scope_scores(con, embedding_path, prefix):
     query = f"""
-        SELECT h.id,h.journal_id,h.publication_year,hash(h.id)%2 AS half,e.embedding
-        FROM read_parquet('{path_glob(HISTORY)}') h
+        SELECT h.id,h.history_journal_id AS journal_id,h.history_publication_year AS publication_year,
+               hash(h.id)%2 AS half,e.embedding
+        FROM read_parquet('{path_glob(EMBED_INPUT)}') h
         JOIN read_parquet('{path_glob(embedding_path)}') e USING (id)
-        WHERE h.journal_id IS NOT NULL
-        ORDER BY h.journal_id,h.publication_year,half
+        WHERE h.is_history AND h.history_journal_id IS NOT NULL
+        ORDER BY h.history_journal_id,h.history_publication_year,half
     """
     reader = con.execute(query).fetch_record_batch(100_000)
     annual = {}
@@ -562,6 +563,9 @@ def main():
     RESULTS.mkdir(parents=True, exist_ok=True)
     con = connect()
     scope_n, reliability, abstract_reliability = build_scope(con)
+    reset_output(TITLE_ABSTRACT)
+    reset_output(EMBED_INPUT)
+    check_budget()
     semantics_n, pca_variance, cluster_inertia = build_semantics(con)
     outcomes_n = build_outcomes(con)
     bad_decomposition = con.execute(
@@ -626,6 +630,16 @@ def main():
     pd.DataFrame([{"gate": key, "passed": value} for key, value in gate.items()]).to_csv(
         RESULTS / "gates.csv", index=False,
     )
+    for transient in (
+        FOCAL, EDGES, CITING, SEMANTICS, OUTCOMES, UNESTIMATED, TITLE,
+        QSS_WORK / "focal_reference_metrics.parquet",
+        QSS_WORK / "focal_author_history.parquet",
+        QSS_WORK / "focal_institution_history.parquet",
+        QSS_WORK / "journal_year_baseline.parquet",
+        QSS_WORK / "journal_year_reference_scope.parquet",
+    ):
+        reset_output(transient)
+        log(f"removed consumed intermediate {transient}")
     write_run("analyze", "complete", {
         "journal_year_scope": scope_n, "focal_semantics": semantics_n,
         "citation_outcomes": outcomes_n, "analysis": analysis_n,

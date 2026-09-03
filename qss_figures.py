@@ -62,7 +62,7 @@ def measurement_figure(con):
     names = con.execute("""
         SELECT journal_id,any_value(journal_name) AS journal_name
         FROM read_parquet(?) GROUP BY journal_id
-    """, [str(QSS_WORK / "focal_base.parquet")]).df()
+    """, [str(QSS_WORK / "analysis_dataset.parquet")]).df()
     fig, axes = plt.subplots(1, 3, figsize=(7.20, 2.25))
     complete = scope[(scope.semantic_title_half0_n >= 50) & (scope.semantic_title_half1_n >= 50)]
     axes[0].scatter(complete.semantic_title_half0, complete.semantic_title_half1,
