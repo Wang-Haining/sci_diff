@@ -12,7 +12,7 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 
 from qss_common import (
-    ARTIFACTS, EMBED_DIM, QSS_WORK, RESULTS, SEED, check_budget, connect,
+    ARTIFACTS, EMBED_DIM, QSS_TMP, QSS_WORK, RESULTS, SEED, check_budget, connect,
     copy_query, log, reset_output, validate_snapshot, write_run,
 )
 
