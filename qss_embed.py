@@ -19,6 +19,8 @@ TITLE_OUT = QSS_WORK / "embeddings_title"
 ABSTRACT_OUT = QSS_WORK / "embeddings_title_abstract"
 BATCH_TITLE = 512
 BATCH_ABSTRACT = 128
+BASE_REVISION = "3447645e1def9117997203454fa4495937bfbd83"
+ADAPTER_REVISION = "2081559630a80fc5851d8f798a05ba81e9468089"
 
 
 def abstract_text(value):
@@ -76,9 +78,12 @@ def main():
     if not assigned:
         raise ValueError(f"expected input shards for rank {rank}/{world}, got 0")
 
-    tokenizer = AutoTokenizer.from_pretrained("allenai/specter2_base")
-    model = AutoAdapterModel.from_pretrained("allenai/specter2_base")
-    model.load_adapter("allenai/specter2", source="hf", load_as="specter2", set_active=True)
+    tokenizer = AutoTokenizer.from_pretrained("allenai/specter2_base", revision=BASE_REVISION)
+    model = AutoAdapterModel.from_pretrained("allenai/specter2_base", revision=BASE_REVISION)
+    model.load_adapter("allenai/specter2", source="hf", load_as="specter2", set_active=True,
+                       revision=ADAPTER_REVISION)
+    if list(model.active_adapters.flatten()) != ["specter2"]:
+        raise RuntimeError(f"expected active SPECTER2 adapter, got {model.active_adapters}")
     model.eval().to(device)
     title_writer = pq.ParquetWriter(
         TITLE_OUT / f"rank-{rank:02d}.parquet",
@@ -139,7 +144,8 @@ def main():
         write_run("embed", "complete", {
             "title_embeddings": title_qc[0], "title_abstract_embeddings": abstract_qc[0],
         }, {"model": "allenai/specter2_base+allenai/specter2",
-            "base_commit": getattr(model.config, "_commit_hash", None), "world_size": world})
+            "base_commit": BASE_REVISION, "adapter_commit": ADAPTER_REVISION,
+            "world_size": world})
         check_budget()
     dist.barrier()
     dist.destroy_process_group()
