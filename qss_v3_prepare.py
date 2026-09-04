@@ -43,6 +43,7 @@ def main():
       list_filter(list_distinct(list_transform(w.authorships, x -> x.author.id)),
                   x -> x IS NOT NULL)
     """.strip()
+    citing_author_ids = author_ids.replace("w.authorships", "c.authorships")
 
     counts["candidate_focal"] = copy_query(con, CANDIDATE, f"""
       SELECT a.* EXCLUDE(publication_month,total_citations,near,intermediate,far,
@@ -103,7 +104,7 @@ def main():
     counts["citing_metadata"] = copy_query(con, CITING, f"""
       WITH ids AS (SELECT DISTINCT citing_id FROM read_parquet('{path_glob(EDGES)}'))
       SELECT c.id,c.title,c.language,c.publication_date,c.publication_year,
-             c.primary_location.source.id AS journal_id,{author_ids} AS author_ids
+             c.primary_location.source.id AS journal_id,{citing_author_ids} AS author_ids
       FROM read_parquet('{works}') c JOIN ids ON c.id=ids.citing_id
     """, per_thread=True)
 
