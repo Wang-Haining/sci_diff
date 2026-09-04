@@ -1,0 +1,8 @@
+gate,value,threshold,passed
+section_a_measurement,0.9850569378571297,>=0.70,True
+common_support,0.7521467872951044,>=0.50,True
+weighted_max_abs_smd,0.14414084338772695,<0.10,False
+focal_ood_arm_difference,0.004355693154527033,<=0.02,True
+broad_citing_coverage,0.9656242126636789,>=0.80,True
+specialized_citing_coverage,0.9719896505677165,>=0.80,True
+primary_direction,-0.10787737463558111,<0,True
