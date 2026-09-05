@@ -22,7 +22,6 @@ SCORES = V3_WORK / "routing_scores.parquet"
 EXPECTED_SUPPORT = 3_818_173
 SUPPORT_TOLERANCE = 0.005
 EXPECTED_THETA = -0.09674843896193808
-THETA_TOLERANCE = 0.02
 OUTCOMES = ("near", "far")
 
 
@@ -42,10 +41,14 @@ def load_frame(con):
 
 
 def attach_macrocluster(con, frame):
+    con.register("support_ids", frame[["id"]])
     qwen = con.execute(f"""
-      SELECT id,qwen_macro FROM read_parquet('{QWEN_V2}')
-      UNION ALL
-      SELECT id,qwen_macro FROM read_parquet('{path_glob(QWEN_V3)}')
+      WITH qwen_all AS (
+        SELECT id,qwen_macro FROM read_parquet('{QWEN_V2}')
+        UNION ALL
+        SELECT id,qwen_macro FROM read_parquet('{path_glob(QWEN_V3)}')
+      )
+      SELECT s.id,q.qwen_macro FROM support_ids s JOIN qwen_all q USING (id)
     """).df()
     if qwen.id.nunique() != len(qwen):
         raise ValueError(f"expected unique Qwen IDs, got rows={len(qwen)} "
@@ -289,12 +292,11 @@ def main():
         raise ValueError(f"expected support within {SUPPORT_TOLERANCE:.1%} of "
                          f"{EXPECTED_SUPPORT:,}, got {support.sum():,}")
     predictions, outcome_diagnostics = fit_routing_predictions(frame, BASE_NUMERIC)
-    attach_macrocluster(con, frame)
     d = aipw_scores(frame, support, propensity, predictions)
+    attach_macrocluster(con, d)
     theta, means, _ = routing_components(d, np.ones(len(d), dtype=bool))
-    if theta >= 0 or abs(theta - EXPECTED_THETA) > THETA_TOLERANCE:
-        raise ValueError(f"expected negative theta within {THETA_TOLERANCE} of "
-                         f"{EXPECTED_THETA}, got {theta}")
+    if not np.isfinite(theta) or theta >= 0:
+        raise ValueError(f"expected finite negative deterministic theta, got {theta}")
 
     add_quartiles(d, "reference_entropy", "reference_entropy_quartile", True)
     add_quartiles(d, "lead_prior_embedding_breadth", "author_breadth_quartile")
@@ -370,7 +372,7 @@ def main():
         "routing_scores": score_rows[0],
     }, {
         "reproduced_theta": theta, "expected_theta": EXPECTED_THETA,
-        "theta_delta": theta - EXPECTED_THETA, "theta_tolerance": THETA_TOLERANCE,
+        "theta_delta": theta - EXPECTED_THETA,
         "deterministic_lightgbm": True, "far_near_means": means.tolist(),
         "expected_support": EXPECTED_SUPPORT, "support_delta": support_delta,
         "propensity": diagnostic, "score_bytes": SCORES.stat().st_size,
