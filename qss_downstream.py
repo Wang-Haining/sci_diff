@@ -26,7 +26,9 @@ OUTCOMES = ("near", "far")
 
 
 def load_frame(con):
-    frame = con.execute("SELECT * FROM read_parquet(?)", [str(ANALYSIS)]).df()
+    frame = con.execute(
+        "SELECT * FROM read_parquet(?) ORDER BY id", [str(ANALYSIS)],
+    ).df()
     if len(frame) != 7_617_662 or frame.id.nunique() != len(frame):
         raise ValueError(f"expected 7,617,662 unique rows, got rows={len(frame)} "
                          f"ids={frame.id.nunique()}")
