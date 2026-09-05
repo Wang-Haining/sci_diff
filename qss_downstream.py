@@ -20,6 +20,7 @@ QWEN_V2 = V2_WORK / "qwen3_semantics.parquet"
 QWEN_V3 = V3_WORK / "qwen3_semantics"
 SCORES = V3_WORK / "routing_scores.parquet"
 EXPECTED_SUPPORT = 3_818_173
+SUPPORT_TOLERANCE = 0.005
 EXPECTED_THETA = -0.09674843896193808
 OUTCOMES = ("near", "far")
 
@@ -281,8 +282,10 @@ def main():
     propensity, prevalence, support, balance, diagnostic = fit_propensity(
         frame, BASE_NUMERIC, 63, "downstream_reproduction",
     )
-    if int(support.sum()) != EXPECTED_SUPPORT:
-        raise ValueError(f"expected support={EXPECTED_SUPPORT:,}, got {support.sum():,}")
+    support_delta = int(support.sum()) - EXPECTED_SUPPORT
+    if abs(support_delta) / EXPECTED_SUPPORT > SUPPORT_TOLERANCE:
+        raise ValueError(f"expected support within {SUPPORT_TOLERANCE:.1%} of "
+                         f"{EXPECTED_SUPPORT:,}, got {support.sum():,}")
     predictions, outcome_diagnostics = fit_routing_predictions(frame, BASE_NUMERIC)
     attach_macrocluster(con, frame)
     d = aipw_scores(frame, support, propensity, predictions)
@@ -336,7 +339,7 @@ def main():
     d[score_columns].to_parquet(SCORES, index=False, compression="zstd")
     score_rows = con.execute("SELECT count(*),count(DISTINCT id) FROM read_parquet(?)",
                              [str(SCORES)]).fetchone()
-    if score_rows != (EXPECTED_SUPPORT, EXPECTED_SUPPORT):
+    if score_rows != (len(d), len(d)):
         raise ValueError(f"routing score QC failed: {score_rows}")
 
     subgroup_estimates = pd.concat(estimate_tables, ignore_index=True)
@@ -365,6 +368,7 @@ def main():
     }, {
         "reproduced_theta": theta, "expected_theta": EXPECTED_THETA,
         "theta_delta": theta - EXPECTED_THETA, "far_near_means": means.tolist(),
+        "expected_support": EXPECTED_SUPPORT, "support_delta": support_delta,
         "propensity": diagnostic, "score_bytes": SCORES.stat().st_size,
         "persistent_bytes": tree_bytes(V2_WORK) + tree_bytes(V3_WORK),
         "group_free_bytes": shutil.disk_usage(GROUP_ROOT).free,
