@@ -1,0 +1,53 @@
+{
+  "design": "qss_v3",
+  "stage": "analyze",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "b5009bf32cd67e5835bd80a635044998bc5de983",
+  "timestamp_utc": "2026-09-05T06:11:00.078582+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0"
+  },
+  "counts": {
+    "author_year": 7124708,
+    "author_features": 7101717,
+    "reference_features": 7617662,
+    "citation_outcomes": 7617662,
+    "analysis": 7617662,
+    "support": 3818173
+  },
+  "extra": {
+    "selected_propensity_leaves": 63,
+    "max_weighted_smd": 0.17992491967284985,
+    "wording": "association",
+    "theta": -0.09674843896193808,
+    "theta_ref": -0.04397514004662373,
+    "theta_ref_over_theta": 0.4545307450792466,
+    "reference_coverage": {
+      "0": 0.9317584124089832,
+      "1": 0.9385637855245966
+    },
+    "citing_coverage": {
+      "0": 0.9660710903817803,
+      "1": 0.9720528641240476
+    },
+    "winsor_caps": {
+      "near": 96.0,
+      "far": 129.0
+    },
+    "top_0_1_percent_flow_share": 0.07489539294869885,
+    "combined_qwen_qc": [
+      61456102,
+      61456102
+    ]
+  }
+}

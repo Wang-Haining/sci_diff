@@ -1,0 +1,77 @@
+{
+  "design": "qss_v3",
+  "stage": "prepare",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "b5009bf32cd67e5835bd80a635044998bc5de983",
+  "timestamp_utc": "2026-09-04T15:59:56.308369+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0"
+  },
+  "counts": {
+    "candidate_focal": 7617662,
+    "citation_edges": 74432171,
+    "citing_metadata": 18788419,
+    "reference_edges": 197639940,
+    "lead_authors": 13074487,
+    "author_prior_papers": 106348259,
+    "qwen_input": 23258916,
+    "specter_input": 2662849
+  },
+  "extra": {
+    "focal_date_qc": [
+      [
+        0,
+        3268625,
+        0,
+        0.1990518949099392,
+        0
+      ],
+      [
+        1,
+        4349037,
+        0,
+        0.0910877511504271,
+        0
+      ]
+    ],
+    "citing_january_1_by_arm": [
+      [
+        0,
+        28526462,
+        0.08426183380189244
+      ],
+      [
+        1,
+        45905709,
+        0.08035817505835711
+      ]
+    ],
+    "initial_reference_qwen_coverage": [
+      [
+        0,
+        80718169,
+        26065864,
+        0.3229243715872693
+      ],
+      [
+        1,
+        116921771,
+        41330113,
+        0.3534851777091197
+      ]
+    ],
+    "window": "[publication_date, publication_date + 60 months)",
+    "author_history_years": "t-5:t-1",
+    "author_far_near_history": "not added in dirty v3"
+  }
+}

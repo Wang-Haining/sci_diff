@@ -1,0 +1,2 @@
+gate,value,threshold,passed
+weighted_max_abs_smd,0.17992491967284985,<0.10,False
