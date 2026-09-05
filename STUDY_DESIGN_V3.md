@@ -111,9 +111,11 @@ from the joint paper-level influence function of the four near/far arm means.
 Journal-cluster analytic intervals and 500 multiplier-bootstrap draws use the
 same journal weights across outcomes.
 
-Weighted maximum absolute SMD below 0.10 is the single rule deciding manuscript
-language: below 0.10 use qualified **effect**; otherwise use **association**.
-Regardless of that label, report support, ESS, weight tails, focal OOD difference,
+Report every residual imbalance and show whether the outcome-adjusted estimate
+changes across the prespecified sensitivity analyses. SMD is a diagnostic for
+measured covariates, not an identification condition. Causal interpretation
+rests on conditional exchangeability, positivity, consistency, and the stated
+measurement assumptions. Report support, ESS, weight tails, focal OOD difference,
 citing classification coverage, January 1 dates, `theta_ref`, and all null or
 contrary outcomes.
 
