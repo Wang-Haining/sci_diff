@@ -185,16 +185,17 @@ def estimate_groups(d, modifier, levels, test, codes, multipliers, groups):
             "n": int(mask.sum()), "n_broad": n0, "n_specialized": n1,
             "journals": journals,
         })
-        draws[str(level)] = interval[5]
+        draws[str(level)] = {"estimate": theta, "draws": interval[5]}
     return pd.DataFrame(rows), draws
 
 
 def contrast_test(draws, high, low, name, modifier):
     if str(high) not in draws or str(low) not in draws:
         return {"test": name, "modifier": modifier, "status": "not_estimable"}
-    values = draws[str(high)] - draws[str(low)]
-    estimate = float(values.mean())
-    se = float(values.std(ddof=1))
+    estimate = draws[str(high)]["estimate"] - draws[str(low)]["estimate"]
+    values = estimate + (draws[str(high)]["draws"] - draws[str(high)]["estimate"]) \
+        - (draws[str(low)]["draws"] - draws[str(low)]["estimate"])
+    se = float((values - estimate).std(ddof=1))
     z = estimate / se
     return {"test": name, "modifier": modifier, "status": "estimated",
             "estimate": estimate, "se": se,
@@ -208,8 +209,11 @@ def heterogeneity_test(draws, name, modifier):
     keys = sorted(draws, key=lambda value: float(value))
     if len(keys) < 2:
         return {"test": name, "modifier": modifier, "status": "not_estimable"}
-    matrix = np.column_stack([draws[key] for key in keys])
-    estimates = matrix.mean(axis=0)
+    estimates = np.array([draws[key]["estimate"] for key in keys])
+    matrix = np.column_stack([
+        estimates[index] + draws[key]["draws"] - draws[key]["estimate"]
+        for index, key in enumerate(keys)
+    ])
     contrasts = estimates[1:] - estimates[0]
     covariance = np.cov(matrix[:, 1:] - matrix[:, [0]], rowvar=False)
     covariance = np.atleast_2d(covariance)
@@ -222,11 +226,16 @@ def heterogeneity_test(draws, name, modifier):
 def trend_test(draws, levels, name, modifier):
     keys = [str(level) for level in levels if str(level) in draws]
     x = np.array([float(key) for key in keys])
-    matrix = np.column_stack([draws[key] for key in keys])
+    estimates = np.array([draws[key]["estimate"] for key in keys])
+    matrix = np.column_stack([
+        estimates[index] + draws[key]["draws"] - draws[key]["estimate"]
+        for index, key in enumerate(keys)
+    ])
     slopes = ((matrix - matrix.mean(axis=1, keepdims=True)) @ (x - x.mean())
               / np.square(x - x.mean()).sum())
-    estimate = float(slopes.mean())
-    se = float(slopes.std(ddof=1))
+    estimate = float(((estimates - estimates.mean()) @ (x - x.mean()))
+                     / np.square(x - x.mean()).sum())
+    se = float((slopes - estimate).std(ddof=1))
     return {"test": name, "modifier": modifier, "status": "estimated",
             "estimate": estimate, "se": se,
             "ci_low": estimate - 1.96 * se, "ci_high": estimate + 1.96 * se,
