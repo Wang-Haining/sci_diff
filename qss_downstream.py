@@ -25,22 +25,10 @@ OUTCOMES = ("near", "far")
 
 
 def load_frame(con):
-    frame = con.execute(f"""
-      WITH qwen AS (
-        SELECT id,qwen_macro FROM read_parquet('{QWEN_V2}')
-        UNION ALL
-        SELECT id,qwen_macro FROM read_parquet('{path_glob(QWEN_V3)}')
-      )
-      SELECT a.*,q.qwen_macro
-      FROM read_parquet('{ANALYSIS}') a JOIN qwen q USING (id)
-    """).df()
+    frame = con.execute("SELECT * FROM read_parquet(?)", [str(ANALYSIS)]).df()
     if len(frame) != 7_617_662 or frame.id.nunique() != len(frame):
         raise ValueError(f"expected 7,617,662 unique rows, got rows={len(frame)} "
                          f"ids={frame.id.nunique()}")
-    if frame.qwen_macro.isna().any() or frame.qwen_macro.nunique() != 32:
-        raise ValueError(f"expected 32 complete macroclusters, got "
-                         f"missing={frame.qwen_macro.isna().sum()} "
-                         f"clusters={frame.qwen_macro.nunique()}")
     for name in HEAVY:
         if (frame[name] < 0).any():
             raise ValueError(f"expected nonnegative {name}")
@@ -49,6 +37,22 @@ def load_frame(con):
         frame[name] = frame[name].astype("category")
     frame["treatment"] = frame.treatment.astype(np.int8)
     return frame
+
+
+def attach_macrocluster(con, frame):
+    qwen = con.execute(f"""
+      SELECT id,qwen_macro FROM read_parquet('{QWEN_V2}')
+      UNION ALL
+      SELECT id,qwen_macro FROM read_parquet('{path_glob(QWEN_V3)}')
+    """).df()
+    if qwen.id.nunique() != len(qwen):
+        raise ValueError(f"expected unique Qwen IDs, got rows={len(qwen)} "
+                         f"ids={qwen.id.nunique()}")
+    frame["qwen_macro"] = frame.id.map(qwen.set_index("id").qwen_macro)
+    if frame.qwen_macro.isna().any() or frame.qwen_macro.nunique() != 32:
+        raise ValueError(f"expected 32 complete macroclusters, got "
+                         f"missing={frame.qwen_macro.isna().sum()} "
+                         f"clusters={frame.qwen_macro.nunique()}")
 
 
 def fit_routing_predictions(frame, numeric):
@@ -280,6 +284,7 @@ def main():
     if int(support.sum()) != EXPECTED_SUPPORT:
         raise ValueError(f"expected support={EXPECTED_SUPPORT:,}, got {support.sum():,}")
     predictions, outcome_diagnostics = fit_routing_predictions(frame, BASE_NUMERIC)
+    attach_macrocluster(con, frame)
     d = aipw_scores(frame, support, propensity, predictions)
     theta, means, _ = routing_components(d, np.ones(len(d), dtype=bool))
     if abs(theta - EXPECTED_THETA) > 0.0005:
