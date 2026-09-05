@@ -350,7 +350,7 @@ def raw_scale_balance(frame, treatment, weights, label):
     return pd.DataFrame(rows)
 
 
-def fit_propensity(frame, numeric, leaves, label):
+def fit_propensity(frame, numeric, leaves, label, deterministic=False):
     treatment = frame.treatment.to_numpy(dtype=np.int8)
     folds = frame.fold.to_numpy()
     propensity = np.full(len(frame), np.nan, dtype=np.float32)
@@ -367,7 +367,8 @@ def fit_propensity(frame, numeric, leaves, label):
             objective="binary", n_estimators=3000, learning_rate=0.05,
             num_leaves=leaves, min_child_samples=100, subsample=0.8,
             subsample_freq=1, colsample_bytree=0.8, random_state=SEED + fold,
-            n_jobs=32, verbosity=-1,
+            n_jobs=32, verbosity=-1, deterministic=deterministic,
+            force_col_wise=deterministic,
         )
         x_fit = fold_features(frame, fit, numeric, prevalence)
         x_valid = fold_features(frame, valid, numeric, prevalence)
