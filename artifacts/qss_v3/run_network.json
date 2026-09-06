@@ -4,8 +4,8 @@
   "status": "complete",
   "snapshot_date": "2026-06-26",
   "seed": 20260902,
-  "git_commit": "cd24f38b5c48424462de86ef4c7ca6d8f158468d",
-  "timestamp_utc": "2026-09-06T03:27:40.441425+00:00",
+  "git_commit": "3c05aabf86fb0821637d233995fbed25b4b76fc5",
+  "timestamp_utc": "2026-09-06T10:49:35.254740+00:00",
   "packages": {
     "duckdb": "1.5.5",
     "numpy": "2.5.1",
@@ -26,7 +26,8 @@
     "nodes": 32,
     "edge_cells": 1024,
     "bootstrap_draws": 500,
-    "leave_one_domain_out_rows": 96
+    "leave_one_domain_out_rows": 96,
+    "citation_dynamics_rows": 15
   },
   "extra": {
     "model_commit": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
@@ -38,6 +39,7 @@
     "layout": "classical MDS of 1-cosine macro-centroid distances; standard MDS squares dissimilarities in the double-centering step",
     "display_edges": "off-diagonal edges selected without arm labels to reach 50% of pooled cross-domain standardized mass",
     "bootstrap": "journal-cluster Poisson(1), shared across arms and metrics",
+    "citation_dynamics": "Hajek IPW cumulative distant, any distant, and additional-after-first at 12-month intervals on fixed downstream support",
     "configuration_null": "directed source/destination independence; semantic-span null preserves standardized leaf margins",
     "exclusions": {
       "support_edges": 31853837,
@@ -124,9 +126,26 @@
           "direction_concordant"
         ],
         "bytes": 8387
+      },
+      "dynamics": {
+        "path": "results/qss_v3/citation_dynamics.csv",
+        "rows": 15,
+        "columns": [
+          "horizon_months",
+          "outcome",
+          "broad",
+          "specialized",
+          "specialized_minus_broad",
+          "se",
+          "ci_low",
+          "ci_high",
+          "bootstrap_ci_low",
+          "bootstrap_ci_high"
+        ],
+        "bytes": 2851
       }
     },
-    "output_bytes": 276017,
+    "output_bytes": 278868,
     "persistent_bytes": 146984372606,
     "group_free_bytes": 2293563916288
   }
