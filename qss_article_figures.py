@@ -512,19 +512,21 @@ def figure1(con, nodes, exposure_run):
         }
         axis.scatter(x, y, s=35, marker=marker, linewidth=0.4,
                      transform=axis.transAxes, zorder=2, **styling)
-    axis.text(0.22, 0.14, "broader scope", ha="center", color=SKY, transform=axis.transAxes)
-    axis.text(0.76, 0.14, "narrower scope", ha="center", color=CORAL, transform=axis.transAxes)
+    axis.text(0.12, 0.14, "broader", ha="center", color=SKY,
+              transform=axis.transAxes, fontsize=6)
+    axis.text(0.88, 0.14, "narrower", ha="center", color=CORAL,
+              transform=axis.transAxes, fontsize=6)
     axis.text(0.49, 0.39, "middle 50%\nnot analysed", ha="center", va="top",
               color=MID_GRAY, transform=axis.transAxes, fontsize=5)
-    axis.text(0.50, 0.89, "similar-title papers × publication year", ha="center",
+    axis.text(0.50, 0.89, "similar titles, same year", ha="center",
               transform=axis.transAxes, fontsize=6)
-    axis.set_title("Comparison within similar papers", pad=3)
+    axis.set_title("Comparison groups", pad=3)
 
     axis = axes[3]
     size = 8 + 140 * nodes.source_share.to_numpy() / nodes.source_share.max()
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE, edgecolor=NAVY, lw=0.55)
     node_labels(axis, nodes, top_n=8, fontsize=5.5)
-    axis.set(xticks=[], yticks=[], title="Research areas inferred from titles")
+    axis.set(xticks=[], yticks=[], title="Research areas from titles")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
         spine.set_visible(False)
@@ -561,16 +563,16 @@ def figure2(estimates):
     axes[0].scatter(absolute.mean_specialized, y, color=CORAL, marker="s", s=18,
                     label="Narrower scope", zorder=2)
     axes[0].set_yticks(y, labels)
-    axes[0].set(xlabel="Adjusted citations per paper", title="Adjusted citation means")
+    axes[0].set(xlabel="Adjusted citations per paper", title="Adjusted counts")
     axes[0].legend(frameon=False, loc="lower right", handletextpad=0.3)
 
     forest(axes[1], absolute, labels, colors=[MID_GRAY, MID_GRAY, GOLD, CORAL])
-    axes[1].set(xlabel="Narrower minus broader", title="Difference between journal groups")
+    axes[1].set(xlabel="Narrower minus broader", title="Difference")
     effect, low, high = forest(
         axes[2], pd.DataFrame([routing]), ["Other area / same topic"], colors=[CORAL],
         transform=percent_ratio,
     )
-    axes[2].set(xlabel="Ratio change (%)", title="Other-area / same-topic ratio")
+    axes[2].set(xlabel="Ratio change (%)", title="Other area / same topic")
     axes[2].text(0.04, 0.08,
                  f"broader {routing.mean_broad:.2f}\nnarrower {routing.mean_specialized:.2f}\n"
                  f"other-area share {share_broad:.1f}% → {share_specialized:.1f}%",
@@ -580,7 +582,7 @@ def figure2(estimates):
 
     forest(axes[3], pd.DataFrame([any_far]), ["Any other-area citation"], colors=[CORAL],
            transform=lambda values: 100 * np.asarray(values, dtype=float))
-    axes[3].set(xlabel="Difference (pp)", title="Cited by another area")
+    axes[3].set(xlabel="Difference (pp)", title="Ever cited by other area")
     axes[3].text(0.04, 0.07,
                  f"broader {100 * any_far.mean_broad:.1f}%\n"
                  f"narrower {100 * any_far.mean_specialized:.1f}%\n"
