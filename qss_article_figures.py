@@ -572,7 +572,7 @@ def figure2(estimates):
         axes[2], pd.DataFrame([routing]), ["Other area / same topic"], colors=[CORAL],
         transform=percent_ratio,
     )
-    axes[2].set(xlabel="Ratio change (%)", title="Other area / same topic")
+    axes[2].set(xlabel="Ratio change (%)", title="Relative citation mix")
     axes[2].text(0.04, 0.08,
                  f"broader {routing.mean_broad:.2f}\nnarrower {routing.mean_specialized:.2f}\n"
                  f"other-area share {share_broad:.1f}% → {share_specialized:.1f}%",
@@ -582,7 +582,7 @@ def figure2(estimates):
 
     forest(axes[3], pd.DataFrame([any_far]), ["Any other-area citation"], colors=[CORAL],
            transform=lambda values: 100 * np.asarray(values, dtype=float))
-    axes[3].set(xlabel="Difference (pp)", title="Ever cited by other area")
+    axes[3].set(xlabel="Difference (pp)", title="Any other-area\ncitation")
     axes[3].text(0.04, 0.07,
                  f"broader {100 * any_far.mean_broad:.1f}%\n"
                  f"narrower {100 * any_far.mean_specialized:.1f}%\n"
