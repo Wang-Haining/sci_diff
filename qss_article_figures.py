@@ -664,8 +664,6 @@ def metric_axis(axis, row, title):
     axis.scatter(null, -0.18, marker="x", s=14, color=MID_GRAY, linewidth=0.7)
     axis.set_yticks([])
     axis.set_title(title, fontsize=6, pad=2)
-    axis.text(0.02, 0.02, "× configuration-model\nexpectation",
-              transform=axis.transAxes, color=MID_GRAY, fontsize=4.7)
 
 
 def lodo_axis(axis, values, full, title):
@@ -682,7 +680,7 @@ def figure4(nodes, edges, metrics, lodo):
     fig = plt.figure(figsize=(MAIN_WIDTH, 5.95))
     grid = fig.add_gridspec(
         2, 2, width_ratios=[1.18, 1], height_ratios=[1.28, 0.72],
-        left=0.06, right=0.94, bottom=0.12, top=0.95, wspace=0.46, hspace=0.56,
+        left=0.06, right=0.94, bottom=0.12, top=0.95, wspace=0.46, hspace=0.80,
     )
     network_axis = fig.add_subplot(grid[0, 0])
     heat_axis = fig.add_subplot(grid[0, 1])
@@ -735,7 +733,7 @@ def figure4(nodes, edges, metrics, lodo):
                              interpolation="nearest", aspect="equal")
     heat_ticks = np.arange(0, 32, 4)
     heat_axis.set(xticks=heat_ticks, yticks=heat_ticks,
-                  xlabel="Citing research area (same order as rows)",
+                  xlabel="Citing research area",
                   title="All area-to-area cells")
     label_index = nodes.set_index("qwen_macro").display_label
     heat_labels = [textwrap.fill(label_index.loc[int(tick)], 18) for tick in heat_ticks]
@@ -761,10 +759,12 @@ def figure4(nodes, edges, metrics, lodo):
         lodo_axis(axis, values, indexed.loc[metric, "contrast_specialized_minus_broad"], title)
     lodo_axes[0].text(-0.28, 1.26, "d", transform=lodo_axes[0].transAxes,
                       fontsize=8, fontweight="bold")
-    lodo_axes[1].text(0.5, 1.26, "Direction after omitting each focal research area",
+    lodo_axes[1].text(0.5, 1.26, "Direction after omitting one focal research area",
                       transform=lodo_axes[1].transAxes, ha="center", fontsize=7)
     panel_label(network_axis, "a", x=-0.08)
     panel_label(heat_axis, "b", x=-0.13)
+    fig.text(0.285, 0.105, "×  configuration-model expectation",
+             ha="center", fontsize=5, color=MID_GRAY)
     fig.text(0.285, 0.075, "Specialized − broad (×100)", ha="center", fontsize=6)
     fig.text(0.735, 0.075, "Specialized − broad (×100)", ha="center", fontsize=6)
     return save(fig, "figure3_network")
