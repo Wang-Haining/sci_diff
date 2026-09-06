@@ -1300,8 +1300,8 @@ def main():
                  "results/qss_v3/macro_labels.csv")
 
     manifest = pd.DataFrame(source_records).sort_values(["figure/panel", "source_file"])
-    if len(manifest) != 16 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 16:
-        raise ValueError(f"expected 16 hashed source-data files, got {len(manifest)}")
+    if len(manifest) != 17 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 17:
+        raise ValueError(f"expected 17 hashed source-data files, got {len(manifest)}")
     manifest.to_csv(SOURCE_DATA / "source_data_manifest.csv", index=False)
     if len(paths) != 16 or len(list(FIGURES.glob("*.pdf"))) != 8 \
             or len(list(FIGURES.glob("*.png"))) != 8:
