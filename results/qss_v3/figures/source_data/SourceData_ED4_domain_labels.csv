@@ -1,33 +1,33 @@
-qwen_macro,n,journals,representative_journals
-0,143883,8963,Applied Economics; Journal of Nutrition Education and Behavior; Applied Economics Letters
-1,82602,5733,Abstracts with programs - Geological Society of America; Atmospheric Environment; The Science of The Total Environment
-2,54343,4108,The FASEB Journal; Fertility and Sterility; Case Medical Research
-3,74970,3384,IEEE Photonics Technology Letters; International Transactions on Electrical Energy Systems; International Journal of RF and Microwave Computer-Aided Engineering
-4,206651,6568,The FASEB Journal; INTERNATIONAL JOURNAL OF SYSTEMATIC AND EVOLUTIONARY MICROBIOLOGY; Natural Product Research
-5,124906,5424,Physics of Plasmas; International Journal of Hydrogen Energy; ECS Meeting Abstracts
-6,115426,4564,BMJ Case Reports; Neuro-Oncology; Ultrasound in Obstetrics and Gynecology
-7,172466,4812,Journal of The Electrochemical Society; Dalton Transactions; Journal of Materials Chemistry A
-8,151409,8911,Perspectives on Politics; Journal of American History; Bulletin of the Center for Children's Books./Bulletin of the Center for Children's Books
-9,149519,4518,The FASEB Journal; Biochemical and Biophysical Research Communications; The Journal of Immunology
-10,83663,7644,Journal of Interpersonal Violence; Child Abuse & Neglect; Case Medical Research
-11,123818,6609,Alzheimer s & Dementia; Case Medical Research; Reactions Weekly
-12,150944,9456,Information Sciences; IEEE Access; International Journal of Engineering & Technology
-13,45120,2964,Abstracts with programs - Geological Society of America; Journal of Climate; Climate Dynamics
-14,108666,4321,Reactions Weekly; Annals of the Rheumatic Diseases; The Journal of Immunology
-15,136743,4981,European Heart Journal; Case Medical Research; The FASEB Journal
-16,146207,8488,Case Medical Research; Journal of Pain and Symptom Management; International Journal of Integrated Care
-17,105953,5187,Case Medical Research; Clinical Oral Implants Research; European Urology Supplements
-18,152090,10905,Africa Research Bulletin Political Social and Cultural Series; Physics Today; Ḥadašŵt ʾarkeyŵlŵgiyŵt.
-19,70297,1701,European Journal of Organic Chemistry; ChemInform; Dalton Transactions
-20,109489,4529,Construction and Building Materials; The Journal of the Acoustical Society of America; Engineering Structures
-21,88044,3230,Materials Science and Engineering A; Materials Today Proceedings; Construction and Building Materials
-22,85146,2707,"Physical review. A/Physical review, A; The European Physical Journal C; Quantum Information Processing"
-23,107289,4959,Zootaxa; ZooKeys; Mitochondrial DNA Part B
-24,128992,6469,"Proceedings of SPIE, the International Society for Optical Engineering/Proceedings of SPIE; The Journal of the Acoustical Society of America; Monthly Notices of the Royal Astronomical Society"
-25,85820,4585,Case Medical Research; Orthopaedic Journal of Sports Medicine; Gait & Posture
-26,107160,5570,Forest Ecology and Management; The Science of The Total Environment; Agricultural and Forest Meteorology
-27,147496,4995,HPB; Case Medical Research; Radiotherapy and Oncology
-28,130319,9153,The Journal of the Acoustical Society of America; DEStech Transactions on Social Science Education and Human Science; The Proceedings of the Annual Convention of the Japanese Psychological Association
-29,91418,2648,Journal of Magnetism and Magnetic Materials; Physical Review Letters; Chinese Physics B
-30,167292,4923,Reactions Weekly; The FASEB Journal; Neuro-Oncology
-31,179350,7036,Case Medical Research; The FASEB Journal; Vaccine
+qwen_macro,display_label,n,journals,representative_journals
+0,Business & economics,143883,8963,Applied Economics; Journal of Nutrition Education and Behavior; Applied Economics Letters
+1,Earth & environmental systems,82602,5733,Abstracts with programs - Geological Society of America; Atmospheric Environment; The Science of The Total Environment
+2,Reproduction & animal science,54343,4108,The FASEB Journal; Fertility and Sterility; Case Medical Research
+3,Electrical & control engineering,74970,3384,IEEE Photonics Technology Letters; International Transactions on Electrical Energy Systems; International Journal of RF and Microwave Computer-Aided Engineering
+4,Plant & microbial biology,206651,6568,The FASEB Journal; INTERNATIONAL JOURNAL OF SYSTEMATIC AND EVOLUTIONARY MICROBIOLOGY; Natural Product Research
+5,Energy & thermal engineering,124906,5424,Physics of Plasmas; International Journal of Hydrogen Energy; ECS Meeting Abstracts
+6,Clinical case reports & neurology,115426,4564,BMJ Case Reports; Neuro-Oncology; Ultrasound in Obstetrics and Gynecology
+7,Electrochemical materials,172466,4812,Journal of The Electrochemical Society; Dalton Transactions; Journal of Materials Chemistry A
+8,Humanities & politics,151409,8911,Perspectives on Politics; Journal of American History; Bulletin of the Center for Children's Books./Bulletin of the Center for Children's Books
+9,Cell & neural biology,149519,4518,The FASEB Journal; Biochemical and Biophysical Research Communications; The Journal of Immunology
+10,Social behavior & violence,83663,7644,Journal of Interpersonal Violence; Child Abuse & Neglect; Case Medical Research
+11,Mental health & cognition,123818,6609,Alzheimer s & Dementia; Case Medical Research; Reactions Weekly
+12,Computing & networks,150944,9456,Information Sciences; IEEE Access; International Journal of Engineering & Technology
+13,Marine ecology & paleoscience,45120,2964,Abstracts with programs - Geological Society of America; Journal of Climate; Climate Dynamics
+14,Hematology & immunology,108666,4321,Reactions Weekly; Annals of the Rheumatic Diseases; The Journal of Immunology
+15,Cardiovascular medicine,136743,4981,European Heart Journal; Case Medical Research; The FASEB Journal
+16,Public health & care delivery,146207,8488,Case Medical Research; Journal of Pain and Symptom Management; International Journal of Integrated Care
+17,Surgical specialties,105953,5187,Case Medical Research; Clinical Oral Implants Research; European Urology Supplements
+18,Editorial & front matter,152090,10905,Africa Research Bulletin Political Social and Cultural Series; Physics Today; Ḥadašŵt ʾarkeyŵlŵgiyŵt.
+19,Synthetic chemistry,70297,1701,European Journal of Organic Chemistry; ChemInform; Dalton Transactions
+20,Civil & structural engineering,109489,4529,Construction and Building Materials; The Journal of the Acoustical Society of America; Engineering Structures
+21,Metallurgy & alloys,88044,3230,Materials Science and Engineering A; Materials Today Proceedings; Construction and Building Materials
+22,Mathematics & theoretical physics,85146,2707,"Physical review. A/Physical review, A; The European Physical Journal C; Quantum Information Processing"
+23,Ecology & taxonomy,107289,4959,Zootaxa; ZooKeys; Mitochondrial DNA Part B
+24,Astronomy & signal processing,128992,6469,"Proceedings of SPIE, the International Society for Optical Engineering/Proceedings of SPIE; The Journal of the Acoustical Society of America; Monthly Notices of the Royal Astronomical Society"
+25,Orthopaedics & sports medicine,85820,4585,Case Medical Research; Orthopaedic Journal of Sports Medicine; Gait & Posture
+26,Agriculture & land systems,107160,5570,Forest Ecology and Management; The Science of The Total Environment; Agricultural and Forest Meteorology
+27,Oncology,147496,4995,HPB; Case Medical Research; Radiotherapy and Oncology
+28,Education & language,130319,9153,The Journal of the Acoustical Society of America; DEStech Transactions on Social Science Education and Human Science; The Proceedings of the Annual Convention of the Japanese Psychological Association
+29,Electronic & magnetic materials,91418,2648,Journal of Magnetism and Magnetic Materials; Physical Review Letters; Chinese Physics B
+30,Drug discovery & pharmaceutics,167292,4923,Reactions Weekly; The FASEB Journal; Neuro-Oncology
+31,Chronic & infectious disease,179350,7036,Case Medical Research; The FASEB Journal; Vaccine
