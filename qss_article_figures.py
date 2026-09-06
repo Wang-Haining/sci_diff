@@ -469,17 +469,24 @@ def figure1(con, nodes, exposure_run):
     axis.hist(scope.semantic_title_similarity, bins=40, color=NAVY,
               edgecolor=WHITE, linewidth=0.15)
     axis.set(xlabel="Within-journal title similarity", ylabel="Journal-years",
-             title="Scope-score reproducibility")
-    inset = axis.inset_axes([0.50, 0.52, 0.47, 0.43])
-    split_bins = source[source.mark.eq("split-half bin")]
-    inset.scatter(split_bins.x, split_bins.y, c=np.log1p(split_bins.value),
-                  s=4, marker="s", cmap="Blues", linewidths=0)
-    limits = [min(split.semantic_title_half0.min(), split.semantic_title_half1.min()),
-              max(split.semantic_title_half0.max(), split.semantic_title_half1.max())]
-    inset.plot(limits, limits, color=INK, lw=0.4, ls="--")
-    inset.set(xticks=[], yticks=[])
-    inset.text(0.04, 0.90, f"split-half reliability\n{exposure_run['extra']['reliability']['spearman_brown']:.3f}",
-               transform=inset.transAxes, va="top", fontsize=5)
+             title="Scope-score measurement")
+    inset = axis.inset_axes([0.49, 0.48, 0.49, 0.48])
+    validity = source[source.mark.eq("convergent validity")].set_index("item")
+    checks = [
+        ("Split half", exposure_run["extra"]["reliability"]["spearman_brown"], NAVY),
+        ("Title + abstract", validity.loc["Title versus title-and-abstract", "x"], TEAL),
+        ("Reference HHI", validity.loc["Title versus reference-field HHI", "x"], GOLD),
+        ("Reference entropy", validity.loc["Title versus negative reference-field entropy", "x"], GOLD),
+    ]
+    y = np.arange(len(checks))[::-1]
+    inset.hlines(y, 0, [item[1] for item in checks], color=LIGHT_GRAY, lw=0.7)
+    inset.scatter([item[1] for item in checks], y,
+                  color=[item[2] for item in checks], s=12, zorder=2)
+    inset.set(xlim=(0, 1), xticks=[0, 0.5, 1], yticks=y,
+              yticklabels=[item[0] for item in checks])
+    inset.tick_params(axis="both", labelsize=4.4, pad=1)
+    inset.spines[["top", "right"]].set_visible(False)
+    inset.set_xlabel("Agreement", fontsize=4.8, labelpad=1)
 
     axis = axes[2]
     axis.axis("off")
