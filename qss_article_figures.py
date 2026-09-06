@@ -508,7 +508,7 @@ def figure1(con, nodes, exposure_run):
     for spine in axis.spines.values():
         spine.set_visible(False)
     for label, axis in zip("abcd", axes):
-        panel_label(axis, label, y=1.11)
+        panel_label(axis, label, x=-0.28, y=1.07)
     return source, save(fig, "figure1_measurement_design")
 
 
