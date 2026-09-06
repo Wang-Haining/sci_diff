@@ -15,6 +15,7 @@ cd /home/g91p721/sci_diff
 git add artifacts/qss_v3/run_network.json \
   results/qss_v3/network_nodes.csv results/qss_v3/network_edges.csv \
   results/qss_v3/network_metrics.csv results/qss_v3/network_leave_one_domain_out.csv \
+  results/qss_v3/citation_dynamics.csv \
   results/qss_v3/figures
 git commit -m "Add network validation and NHB figures"
 git push origin HEAD
