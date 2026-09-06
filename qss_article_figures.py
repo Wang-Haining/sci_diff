@@ -503,7 +503,7 @@ def figure1(con, nodes, exposure_run):
     size = 8 + 140 * nodes.source_share.to_numpy() / nodes.source_share.max()
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE, edgecolor=NAVY, lw=0.55)
     node_labels(axis, nodes, top_n=8, fontsize=4.5)
-    axis.set(xticks=[], yticks=[], title="Venue-free destination map")
+    axis.set(xticks=[], yticks=[], title="Text-defined research domains")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
         spine.set_visible(False)
