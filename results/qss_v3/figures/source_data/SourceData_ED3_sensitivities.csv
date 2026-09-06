@@ -9,7 +9,7 @@ b,99.9% winsorized,ci_low,-0.1282981682733862,results/qss_v3/dirty_estimates.csv
 b,99.9% winsorized,ci_high,-0.0552309102817173,results/qss_v3/dirty_estimates.csv
 b,99.9% winsorized,bootstrap_ci_low,-0.1286392926499515,results/qss_v3/dirty_estimates.csv
 b,99.9% winsorized,bootstrap_ci_high,-0.0522248174999959,results/qss_v3/dirty_estimates.csv
-a,Deterministic refit,estimate,-0.08245270348646583,artifacts/qss_v3/run_downstream.json
+a,Primary-specification rerun,estimate,-0.08245270348646583,artifacts/qss_v3/run_downstream.json
 d,Top 0.1% papers,flow_share,0.07489539294869885,artifacts/qss_v3/run_analyze.json
 d,Nearby citations,winsor_cap,96.0,artifacts/qss_v3/run_analyze.json
 d,Distant citations,winsor_cap,129.0,artifacts/qss_v3/run_analyze.json
