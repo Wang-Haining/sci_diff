@@ -647,7 +647,7 @@ def figure4(nodes, edges, metrics, lodo):
     fig = plt.figure(figsize=(MAIN_WIDTH, 5.95))
     grid = fig.add_gridspec(
         2, 2, width_ratios=[1.18, 1], height_ratios=[1.28, 0.72],
-        left=0.06, right=0.94, bottom=0.12, top=0.95, wspace=0.30, hspace=0.56,
+        left=0.06, right=0.94, bottom=0.12, top=0.95, wspace=0.46, hspace=0.56,
     )
     network_axis = fig.add_subplot(grid[0, 0])
     heat_axis = fig.add_subplot(grid[0, 1])
@@ -701,8 +701,10 @@ def figure4(nodes, edges, metrics, lodo):
     heat_axis.set(xticks=[], yticks=np.arange(0, 32, 4),
                   xlabel="Citing domain (same order as rows)",
                   title="All source–destination cells")
-    names = nodes.set_index("qwen_macro").display_label
-    heat_axis.set_yticklabels([names[x] for x in range(0, 32, 4)])
+    heat_labels = ["Business/economics", "Plant/microbiology", "Humanities/politics",
+                   "Computing/networks", "Public health/care", "Civil/structural eng.",
+                   "Astronomy/imaging", "Education/language"]
+    heat_axis.set_yticklabels(heat_labels, fontsize=5)
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
     colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
     colorbar.ax.tick_params(labelsize=5)
