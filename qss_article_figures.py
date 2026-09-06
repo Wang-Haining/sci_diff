@@ -2,6 +2,7 @@
 import hashlib
 import json
 import subprocess
+import textwrap
 from pathlib import Path
 
 import matplotlib as mpl
@@ -66,8 +67,8 @@ FIGURE_NAMES = [
     "extended_data_figure3_sensitivities", "extended_data_figure4_heterogeneity",
 ]
 NODE_LABEL_OFFSETS = {
-    2: (6, 4), 3: (7, -2), 5: (-7, 2),
-    14: (6, -5), 15: (-6, -3), 27: (-6, 4),
+    4: (10, 7), 7: (13, 0), 8: (-8, 10), 9: (-17, -7),
+    12: (17, 8), 18: (-14, -8), 30: (12, -12), 31: (-15, 6),
 }
 SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
@@ -117,10 +118,15 @@ def panel_label(axis, label, x=-0.16, y=1.05):
 
 def node_labels(axis, nodes, top_n, fontsize=5):
     for row in nodes.nlargest(top_n, "source_share").itertuples():
-        axis.annotate(f"{int(row.qwen_macro):02d}", (row.mds_x, row.mds_y),
-                      xytext=NODE_LABEL_OFFSETS.get(int(row.qwen_macro), (0, 0)),
+        offset = NODE_LABEL_OFFSETS.get(int(row.qwen_macro), (0, 0))
+        axis.annotate("\n".join(textwrap.wrap(row.display_label, 17)),
+                      (row.mds_x, row.mds_y), xytext=offset,
                       textcoords="offset points", ha="center", va="center",
-                      fontsize=fontsize, zorder=4)
+                      fontsize=fontsize, linespacing=0.9, zorder=4,
+                      bbox={"boxstyle": "round,pad=0.12", "facecolor": WHITE,
+                            "edgecolor": "none", "alpha": 0.82},
+                      arrowprops=({"arrowstyle": "-", "color": MID_GRAY, "lw": 0.3}
+                                  if offset != (0, 0) else None))
 
 
 def require_file(path):
@@ -193,7 +199,8 @@ def validate_subgroups(estimates, tests, labels):
     require_finite(labels, "macro labels", ["qwen_macro", "n", "journals"])
     if len(labels) != 32 or labels.qwen_macro.nunique() != 32 \
             or set(labels.qwen_macro.astype(int)) != set(range(32)) \
-            or labels.representative_journals.isna().any():
+            or labels[["display_label", "representative_journals"]].isna().any().any() \
+            or labels.display_label.duplicated().any():
         raise ValueError(f"expected 32 complete macro labels, got rows={len(labels)}")
 
 
@@ -272,7 +279,8 @@ def read_inputs():
     )
     tests = load_csv(RESULTS / "subgroup_tests.csv", ["test", "modifier", "status"])
     labels = load_csv(RESULTS / "macro_labels.csv",
-                      ["qwen_macro", "n", "journals", "representative_journals"])
+                      ["qwen_macro", "display_label", "n", "journals",
+                       "representative_journals"])
     nodes = load_csv(RESULTS / "network_nodes.csv",
                      ["qwen_macro", "mds_x", "mds_y", "source_share",
                       "representative_journals"])
@@ -285,6 +293,8 @@ def read_inputs():
     lodo = load_csv(RESULTS / "network_leave_one_domain_out.csv",
                     ["omitted_source_macro", "metric", "contrast_specialized_minus_broad"])
     validate_subgroups(subgroups, tests, labels)
+    nodes = nodes.merge(labels[["qwen_macro", "display_label"]], on="qwen_macro",
+                        validate="one_to_one")
     validate_network(nodes, edges, metrics, lodo)
     return estimates, subgroups, tests, labels, nodes, edges, metrics, lodo
 
@@ -395,7 +405,7 @@ def measurement_data(con, nodes, exposure_run):
                                       ("middle excluded", 0.49, 0.48, 2),
                                       ("specialized", 0.70, 0.66, 1),
                                       ("specialized", 0.82, 0.32, 1))]
-    rows += [{"panel": "d", "mark": "frozen macrodomain", "item": f"D{int(r.qwen_macro):02d}",
+    rows += [{"panel": "d", "mark": "frozen macrodomain", "item": r.display_label,
               "x": r.mds_x, "y": r.mds_y, "value": r.source_share}
              for r in nodes.itertuples()]
     return scope, split, pd.DataFrame(rows)
@@ -691,8 +701,9 @@ def figure4(nodes, edges, metrics, lodo):
     heat_axis.set(xticks=np.arange(0, 32, 4), yticks=np.arange(0, 32, 4),
                   xlabel="Citing macrodomain", ylabel="Focal macrodomain",
                   title="All source–destination cells")
-    heat_axis.set_xticklabels([f"D{x:02d}" for x in range(0, 32, 4)], rotation=45, ha="right")
-    heat_axis.set_yticklabels([f"D{x:02d}" for x in range(0, 32, 4)])
+    names = nodes.set_index("qwen_macro").display_label
+    heat_axis.set_xticklabels([names[x] for x in range(0, 32, 4)], rotation=45, ha="right")
+    heat_axis.set_yticklabels([names[x] for x in range(0, 32, 4)])
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
     colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
     colorbar.ax.tick_params(labelsize=5)
@@ -1044,7 +1055,7 @@ def tidy_tests(tests):
 
 def extended_data4(subgroups, labels):
     domains = subgroup_frame(subgroups, "semantic_domain").merge(
-        labels[["qwen_macro", "representative_journals"]],
+        labels[["qwen_macro", "display_label", "representative_journals"]],
         left_on="level", right_on="qwen_macro", validate="one_to_one",
     ).sort_values("estimate")
     years = subgroup_frame(subgroups, "publication_year")
@@ -1054,7 +1065,7 @@ def extended_data4(subgroups, labels):
     fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 6.75), constrained_layout=True,
                              gridspec_kw={"height_ratios": [1.55, 1]})
 
-    domain_labels = [f"D{int(row.qwen_macro):02d}" for row in domains.itertuples()]
+    domain_labels = [row.display_label for row in domains.itertuples()]
     forest(axes[0, 0], domains, domain_labels, colors=[NAVY] * 32, transform=percent_ratio)
     axes[0, 0].set_xlim(-55, 105)
     d18_position = next(index for index, row in enumerate(domains.itertuples())
