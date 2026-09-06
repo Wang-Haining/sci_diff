@@ -976,7 +976,8 @@ def extended_data3(estimates, analyze_run, downstream_run):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     winsor = estimate_row(estimates, "primary", "far_to_near_routing_winsorized")
     deterministic = float(downstream_run["extra"]["reproduced_theta"])
-    fig, axes = plt.subplots(1, 4, figsize=(MAIN_WIDTH, 2.45), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 4.55), constrained_layout=True)
+    axes = axes.ravel()
 
     forest(axes[0], pd.DataFrame([primary]), ["Primary"], colors=[CORAL], transform=percent_ratio)
     axes[0].scatter(percent_ratio([deterministic]), [-0.28], marker="D", facecolor=WHITE,
