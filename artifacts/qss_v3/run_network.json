@@ -4,8 +4,8 @@
   "status": "complete",
   "snapshot_date": "2026-06-26",
   "seed": 20260902,
-  "git_commit": "5850ac5e780229e5b0c81907f07b31d7005afc09",
-  "timestamp_utc": "2026-09-06T10:53:44.513946+00:00",
+  "git_commit": "9c3faac431a1321dfc36938ce9d730b42919a214",
+  "timestamp_utc": "2026-09-06T17:21:18.264403+00:00",
   "packages": {
     "duckdb": "1.5.5",
     "numpy": "2.5.1",
@@ -28,7 +28,8 @@
     "bootstrap_draws": 500,
     "leave_one_domain_out_rows": 96,
     "citation_dynamics_rows": 15,
-    "same_journal_sensitivity_rows": 3
+    "same_journal_sensitivity_rows": 3,
+    "score_diagnostic_rows": 4
   },
   "extra": {
     "model_commit": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
@@ -42,6 +43,14 @@
     "bootstrap": "journal-cluster Poisson(1), shared across arms and metrics",
     "citation_dynamics": "Hajek IPW cumulative distant, any distant, and additional-after-first at 12-month intervals on fixed downstream support",
     "same_journal_sensitivity": "Hajek IPW external versus all non-shared-author citations on fixed downstream support",
+    "score_diagnostics": "No-refit AIPW and reconstructed outcome-model predictions, with a fixed-score exclusion of January 1 focal dates",
+    "score_diagnostic_estimates": {
+      "all_support:aipw": -0.08245270348646416,
+      "all_support:outcome_model_only": -0.0856232373302282,
+      "exclude_january_1:aipw": -0.09099092224707506,
+      "exclude_january_1:outcome_model_only": -0.10143975585946907
+    },
+    "reference_version_limitation": "OpenAlex exposes one work-level referenced_works list; location version tags do not carry separate reference lists, so preprint-versus-journal reference change is not identifiable from this snapshot",
     "configuration_null": "directed source/destination independence; semantic-span null preserves standardized leaf margins",
     "exclusions": {
       "support_edges": 31853837,
@@ -165,9 +174,35 @@
           "same_journal_unclassified_edges"
         ],
         "bytes": 877
+      },
+      "score_diagnostics": {
+        "path": "results/qss_v3/round2_score_diagnostics.csv",
+        "rows": 4,
+        "columns": [
+          "population",
+          "estimator",
+          "n",
+          "journals",
+          "broad_n",
+          "specialized_n",
+          "near_broad",
+          "near_specialized",
+          "distant_broad",
+          "distant_specialized",
+          "estimate",
+          "relative_change",
+          "se",
+          "ci_low",
+          "ci_high",
+          "bootstrap_ci_low",
+          "bootstrap_ci_high",
+          "january_1_rate_broad",
+          "january_1_rate_specialized"
+        ],
+        "bytes": 1502
       }
     },
-    "output_bytes": 279745,
+    "output_bytes": 281247,
     "persistent_bytes": 146984372606,
     "group_free_bytes": 2293563916288
   }
