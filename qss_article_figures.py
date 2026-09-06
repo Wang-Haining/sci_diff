@@ -677,7 +677,7 @@ def figure4(nodes, edges, metrics, lodo):
     size = 13 + 215 * nodes.source_share.to_numpy() / nodes.source_share.max()
     network_axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
                          edgecolor=INK, linewidth=0.55, zorder=3)
-    node_labels(network_axis, nodes, top_n=12, fontsize=4.5)
+    node_labels(network_axis, nodes, top_n=8, fontsize=4.5)
     network_axis.set(xticks=[], yticks=[],
                      title="Citation-flow differences")
     network_axis.set_aspect("equal", adjustable="datalim")
@@ -698,11 +698,10 @@ def figure4(nodes, edges, metrics, lodo):
     )
     image = heat_axis.imshow(matrix, cmap=flow_cmap, vmin=-limit, vmax=limit,
                              interpolation="nearest", aspect="equal")
-    heat_axis.set(xticks=np.arange(0, 32, 4), yticks=np.arange(0, 32, 4),
-                  xlabel="Citing macrodomain", ylabel="Focal macrodomain",
+    heat_axis.set(xticks=[], yticks=np.arange(0, 32, 4),
+                  xlabel="Citing domain (same order as rows)",
                   title="All source–destination cells")
     names = nodes.set_index("qwen_macro").display_label
-    heat_axis.set_xticklabels([names[x] for x in range(0, 32, 4)], rotation=45, ha="right")
     heat_axis.set_yticklabels([names[x] for x in range(0, 32, 4)])
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
     colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
