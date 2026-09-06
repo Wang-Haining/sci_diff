@@ -534,7 +534,7 @@ def figure2(estimates):
 
     forest(axes[3], pd.DataFrame([any_far]), ["Any distant"], colors=[CORAL],
            transform=lambda values: 100 * np.asarray(values, dtype=float))
-    axes[3].set(xlabel="Specialized minus broad (pp)", title="Any distant citation")
+    axes[3].set(xlabel="Difference (pp)", title="Any distant citation")
     axes[3].text(0.04, 0.07,
                  f"broad {100 * any_far.mean_broad:.1f}%\n"
                  f"specialized {100 * any_far.mean_specialized:.1f}%\n"
