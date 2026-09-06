@@ -649,7 +649,7 @@ def figure3(estimates, subgroups, tests, same_author):
     author = author.set_index("author_role").loc[["first", "last"]].reset_index()
     forest(axes[3], author, ["Same first author", "Same last author"],
            colors=[TEAL, NAVY], markers=["o", "s"], transform=percent_ratio)
-    axes[3].set(xlabel="Ratio change (%)", title="Within-author comparison")
+    axes[3].set(xlabel="Ratio change (%)", title="Within-author")
     for label, axis in zip("abcd", axes):
         panel_label(axis, label, x=-0.28, y=1.07)
     return source, save(fig, "figure4_boundaries_modifiers")
