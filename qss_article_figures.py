@@ -65,6 +65,10 @@ FIGURE_NAMES = [
     "extended_data_figure1_cohort_coverage", "extended_data_figure2_diagnostics",
     "extended_data_figure3_sensitivities", "extended_data_figure4_heterogeneity",
 ]
+NODE_LABEL_OFFSETS = {
+    2: (6, 4), 3: (7, -2), 5: (-7, 2),
+    14: (6, -5), 15: (-6, -3), 27: (-6, 4),
+}
 SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
     "SourceData_Figure3_estimates.csv", "SourceData_Figure3_tests.csv",
@@ -109,6 +113,14 @@ def style():
 def panel_label(axis, label, x=-0.16, y=1.05):
     axis.text(x, y, label, transform=axis.transAxes, fontsize=8,
               fontweight="bold", va="bottom", ha="left", clip_on=False)
+
+
+def node_labels(axis, nodes, fontsize=5):
+    for row in nodes.itertuples():
+        axis.annotate(f"{int(row.qwen_macro):02d}", (row.mds_x, row.mds_y),
+                      xytext=NODE_LABEL_OFFSETS.get(int(row.qwen_macro), (0, 0)),
+                      textcoords="offset points", ha="center", va="center",
+                      fontsize=fontsize, zorder=4)
 
 
 def require_file(path):
@@ -444,11 +456,9 @@ def figure1(con, nodes, exposure_run):
     axis.set_title("Observed text overlap", pad=3)
 
     axis = axes[3]
-    size = 9 + 190 * nodes.source_share.to_numpy() / nodes.source_share.max()
+    size = 8 + 140 * nodes.source_share.to_numpy() / nodes.source_share.max()
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE, edgecolor=NAVY, lw=0.55)
-    for row in nodes.itertuples():
-        axis.text(row.mds_x, row.mds_y, f"{int(row.qwen_macro):02d}",
-                  ha="center", va="center", fontsize=5)
+    node_labels(axis, nodes, fontsize=4.5)
     axis.set(xticks=[], yticks=[], title="Venue-free destination map")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
@@ -569,7 +579,7 @@ def figure3(estimates, subgroups, tests):
     forest(axes[0], pd.DataFrame([primary, reference]),
            ["Later citations", "Final references"], colors=[CORAL, TEAL],
            transform=percent_ratio)
-    axes[0].set(xlabel="Ratio change (%)", title="References and later citations")
+    axes[0].set(xlabel="Ratio change (%)", title="Reference routing")
 
     forest(axes[1], pd.DataFrame([primary, adjusted]),
            ["Primary", "+ reference routing"], colors=[CORAL, TEAL],
@@ -578,7 +588,7 @@ def figure3(estimates, subgroups, tests):
 
     forest(axes[2], breadth, ["Q1 narrow refs", "Q2", "Q3", "Q4 broad refs"],
            colors=[NAVY] * 4, transform=percent_ratio)
-    axes[2].set(xlabel="Ratio change (%)", title="Paper reference breadth")
+    axes[2].set(xlabel="Ratio change (%)", title="Reference breadth")
 
     forest(axes[3], author_tests,
            ["First/last-author breadth", "Team prior output"],
@@ -657,14 +667,12 @@ def figure4(nodes, edges, metrics, lodo):
     size = 13 + 215 * nodes.source_share.to_numpy() / nodes.source_share.max()
     network_axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
                          edgecolor=INK, linewidth=0.55, zorder=3)
-    for row in nodes.itertuples():
-        network_axis.text(row.mds_x, row.mds_y, f"{int(row.qwen_macro):02d}",
-                          ha="center", va="center", fontsize=5, zorder=4)
+    node_labels(network_axis, nodes, fontsize=4.5)
     centre_x, centre_y = nodes.mds_x.median(), nodes.mds_y.median()
     for row in nodes.nlargest(4, "source_share").itertuples():
         journal = str(row.representative_journals).split(";")[0][:18]
-        dx = 7 if row.mds_x >= centre_x else -7
-        dy = 7 if row.mds_y >= centre_y else -7
+        dx = -7 if row.mds_x >= centre_x else 7
+        dy = -7 if row.mds_y >= centre_y else 7
         network_axis.annotate(
             f"D{int(row.qwen_macro):02d}  {journal}", (row.mds_x, row.mds_y),
             xytext=(dx, dy), textcoords="offset points", fontsize=5,
@@ -673,7 +681,7 @@ def figure4(nodes, edges, metrics, lodo):
             bbox={"facecolor": WHITE, "edgecolor": "none", "pad": 0.5, "alpha": 0.85},
         )
     network_axis.set(xticks=[], yticks=[],
-                     title="Deterministic-refit network: pooled topology and arm differences")
+                     title="Citation-flow differences")
     network_axis.set_aspect("equal", adjustable="datalim")
     for spine in network_axis.spines.values():
         spine.set_visible(False)
@@ -694,11 +702,11 @@ def figure4(nodes, edges, metrics, lodo):
                              interpolation="nearest", aspect="equal")
     heat_axis.set(xticks=np.arange(0, 32, 4), yticks=np.arange(0, 32, 4),
                   xlabel="Citing macrodomain", ylabel="Focal macrodomain",
-                  title="All 1,024 source–destination cells")
+                  title="All source–destination cells")
     heat_axis.set_xticklabels([f"D{x:02d}" for x in range(0, 32, 4)], rotation=45, ha="right")
     heat_axis.set_yticklabels([f"D{x:02d}" for x in range(0, 32, 4)])
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
-    colorbar.set_label("Destination-share difference")
+    colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
     colorbar.ax.tick_params(labelsize=5)
 
     ordered_metrics = ["directed_modularity", "audience_participation", "semantic_span"]
