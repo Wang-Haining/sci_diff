@@ -134,3 +134,32 @@ Write qss_v3 artifacts without overwriting qss_v2:
 - outcome early-stopping diagnostics;
 - estimates, balance, report, and run manifest; and
 - the 99.9%-winsorized result and top-0.1% citation contribution.
+
+## Post hoc external-reach extension
+
+The citation result was known before this extension was designed. SciSciNet-v2
+is used only to ask whether the association also appears in a different observed
+outcome: links from tracked news, blog and other web pages. It is not an external
+replication of the citation analysis and does not strengthen exchangeability.
+
+The analysis includes 2018--2020 focal papers with a DOI in the fixed OpenAlex
+snapshot. For each paper, count distinct linked web pages first observed from its
+publication date through 24 months. This interval lies wholly inside the observed
+SciSciNet newsfeed period. Report DOI availability before restriction by journal
+group.
+
+Refit the two prespecified propensity candidates and the binary any-page and page-
+count nuisance models in this DOI-observable cohort using the qss_v3 covariates,
+five journal-grouped folds and early stopping. Count models use Poisson loss.
+Report AIPW marginal means, absolute differences, relative differences, journal-
+clustered intervals and shared 500-draw multiplier-bootstrap intervals. Also report
+each publication year and weighting-only estimates after cumulatively excluding
+the three most frequent web hosts selected from both journal groups combined.
+
+Promote the extension to the main text only if both AIPW outcomes are lower for
+narrower-scope journals with confidence intervals excluding zero, both outcomes
+have the same direction in every publication year, the direction remains after
+excluding the three largest hosts, and common-support retention is at least 50%.
+Standardized differences remain reported diagnostics rather than a causal gate.
+Regardless of promotion, retain all estimates and describe the outcome as tracked
+web mentions rather than public attention, readership or downstream use.
