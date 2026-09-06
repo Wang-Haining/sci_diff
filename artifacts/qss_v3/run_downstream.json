@@ -1,0 +1,59 @@
+{
+  "design": "qss_v3",
+  "stage": "downstream",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "6b72bf64bc86fcbd2546c5782c9f74f1b8a536aa",
+  "timestamp_utc": "2026-09-06T02:53:09.411376+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0"
+  },
+  "counts": {
+    "analysis": 7617662,
+    "support": 3827491,
+    "journals": 20215,
+    "subgroup_estimates": 50,
+    "subgroup_tests": 10,
+    "routing_scores": 3827491
+  },
+  "extra": {
+    "reproduced_theta": -0.08245270348646583,
+    "expected_theta": -0.09674843896193808,
+    "theta_delta": 0.014295735475472249,
+    "deterministic_lightgbm": true,
+    "far_near_means": [
+      2.5505801539730357,
+      1.9510088882702141,
+      2.958835567161736,
+      2.0841661989874947
+    ],
+    "expected_support": 3818173,
+    "support_delta": 9318,
+    "propensity": {
+      "candidate": "downstream_deterministic",
+      "num_leaves": 63,
+      "support": 0.5024495704850124,
+      "support_n": 3827491,
+      "max_weighted_abs_smd": 0.19369415129081247,
+      "ess_broad": 670755.6472982387,
+      "ess_specialized": 1021386.2786463025,
+      "weight_p50": 1.3235019266538355,
+      "weight_p95": 7.688310986057925,
+      "weight_p99": 15.425405215133859,
+      "weight_max": 19.999995231629555,
+      "best_iterations": "[3000, 3000, 3000, 3000, 3000]"
+    },
+    "score_bytes": 221925361,
+    "persistent_bytes": 132628026627,
+    "group_free_bytes": 2293774680064
+  }
+}
