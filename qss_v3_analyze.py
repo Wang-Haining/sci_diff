@@ -325,6 +325,10 @@ def balance_table(frame, treatment, weights, numeric, label):
 
 def fold_features(frame, mask, numeric, prevalence):
     columns = numeric + CATEGORICAL
+    forbidden = {"semantic_title_similarity", "treatment", "journal_id", "journal_name"}
+    leaked = forbidden.intersection(columns)
+    if leaked:
+        raise ValueError(f"treatment-defining or identifier features entered adjustment: {sorted(leaked)}")
     x = frame.loc[mask, columns].copy()
     x["choice_prevalence"] = frame.loc[mask, "choice_set_id"].map(prevalence)
     if x.choice_prevalence.isna().any():
