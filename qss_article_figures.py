@@ -66,8 +66,9 @@ def figure1_measurement(con):
     scope = con.execute("""
       SELECT semantic_title_similarity,semantic_title_half0,semantic_title_half1,
              semantic_title_n,semantic_title_half0_n,semantic_title_half1_n
-      FROM read_parquet(?) USING SAMPLE 150000 ROWS (reservoir, 20260902)
+      FROM read_parquet(?)
       WHERE semantic_title_n>=100
+      USING SAMPLE 150000 ROWS (reservoir, 20260902)
     """, [str(V2_WORK / "journal_year_scope.parquet")]).df()
     split = scope[(scope.semantic_title_half0_n >= 50) & (scope.semantic_title_half1_n >= 50)]
     fig, axes = plt.subplots(1, 3, figsize=(7.20, 2.25))
