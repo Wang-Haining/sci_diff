@@ -602,21 +602,21 @@ def figure3(estimates, subgroups, tests):
     forest(axes[0], pd.DataFrame([primary, reference]),
            ["Later citations", "Final references"], colors=[CORAL, TEAL],
            transform=percent_ratio)
-    axes[0].set(xlabel="Distant / nearby ratio change (%)", title="Published references")
+    axes[0].set(xlabel="Distant / nearby change (%)", title="Published references")
 
     forest(axes[1], pd.DataFrame([primary, adjusted]),
            ["Primary", "+ reference distribution"], colors=[CORAL, TEAL],
            transform=percent_ratio)
-    axes[1].set(xlabel="Distant / nearby ratio change (%)", title="Reference-inclusive model")
+    axes[1].set(xlabel="Distant / nearby change (%)", title="Reference-inclusive model")
 
     forest(axes[2], breadth, ["Q1 narrow refs", "Q2", "Q3", "Q4 broad refs"],
            colors=[NAVY] * 4, transform=percent_ratio)
-    axes[2].set(xlabel="Distant / nearby ratio change (%)", title="Reference breadth")
+    axes[2].set(xlabel="Distant / nearby change (%)", title="Reference breadth")
 
     forest(axes[3], author_tests,
            ["First/last-author breadth", "Team prior output"],
            colors=[TEAL, NAVY], markers=["o", "s"], transform=percent_ratio)
-    axes[3].set(xlabel="Q4 vs Q1 ratio change (%)", title="Author history")
+    axes[3].set(xlabel="Q4 − Q1 change (%)", title="Author history")
     for label, axis in zip("abcd", axes):
         panel_label(axis, label)
     return source, save(fig, "figure4_boundaries_modifiers")
