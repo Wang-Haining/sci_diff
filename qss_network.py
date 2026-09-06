@@ -43,6 +43,7 @@ OUTPUTS = {
     "metrics": RESULTS / "network_metrics.csv",
     "lodo": RESULTS / "network_leave_one_domain_out.csv",
     "dynamics": RESULTS / "citation_dynamics.csv",
+    "same_journal": RESULTS / "same_journal_sensitivity.csv",
 }
 
 
@@ -239,7 +240,6 @@ def build_eligible_edges(con):
       FROM network_joined_edges
       WHERE same_journal=false AND NOT shared_author AND classified
     """)
-    con.execute("DROP TABLE network_joined_edges")
     log("network eligible citations " + " ".join(
         f"{name}={value:,}" for name, value in zip(
             ["support", "missing_journal", "same_journal", "shared_author",
@@ -247,6 +247,90 @@ def build_eligible_edges(con):
         )
     ))
     return decomposition
+
+
+def same_journal_sensitivity(con, journal_n, multipliers):
+    reader = con.execute("""
+      WITH focal AS (
+        SELECT journal_code,treatment,sum(ipw) AS denominator
+        FROM network_support GROUP BY ALL
+      ), citations AS (
+        SELECT journal_code,treatment,
+          sum(ipw) FILTER (WHERE same_journal=false AND classified
+                            AND source_leaf=target_leaf) AS external_near,
+          sum(ipw) FILTER (WHERE same_journal=false AND classified
+                            AND source_leaf<>target_leaf AND source_macro=target_macro)
+                            AS external_intermediate,
+          sum(ipw) FILTER (WHERE same_journal=false AND classified
+                            AND source_macro<>target_macro) AS external_distant,
+          sum(ipw) FILTER (WHERE same_journal AND classified
+                            AND source_leaf=target_leaf) AS same_near,
+          sum(ipw) FILTER (WHERE same_journal AND classified
+                            AND source_leaf<>target_leaf AND source_macro=target_macro)
+                            AS same_intermediate,
+          sum(ipw) FILTER (WHERE same_journal AND classified
+                            AND source_macro<>target_macro) AS same_distant,
+          count(*) FILTER (WHERE same_journal AND NOT shared_author) AS same_nonself,
+          count(*) FILTER (WHERE same_journal AND NOT shared_author AND NOT classified)
+                            AS same_unclassified
+        FROM network_joined_edges WHERE NOT shared_author GROUP BY ALL
+      )
+      SELECT f.*,c.* EXCLUDE(journal_code,treatment)
+      FROM focal f LEFT JOIN citations c USING (journal_code,treatment)
+      ORDER BY journal_code,treatment
+    """).fetch_record_batch(100_000)
+    values = np.zeros((journal_n, 2, 9), dtype=np.float64)
+    rows = 0
+    for batch in reader:
+        columns = [batch.column(i).to_numpy(zero_copy_only=False) for i in range(11)]
+        for row in zip(*columns):
+            journal, arm = row[:2]
+            values[journal, arm] = np.nan_to_num(row[2:], nan=0.0)
+        rows += len(batch)
+    total = values.sum(axis=0)
+    same_nonself = int(total[:, 7].sum())
+    same_unclassified = int(total[:, 8].sum())
+    if rows <= 0 or same_nonself != 1_888_865 or same_unclassified >= same_nonself:
+        raise ValueError(f"same-journal edge QC failed rows={rows} nonself={same_nonself} "
+                         f"unclassified={same_unclassified}")
+
+    def estimates(array):
+        means = array[..., 1:7] / array[..., [0]]
+        external = np.log(means[..., 2]) - np.log(means[..., 0])
+        inclusive = np.log(means[..., 2] + means[..., 5]) \
+            - np.log(means[..., 0] + means[..., 3])
+        return means, np.stack([
+            external[..., 1] - external[..., 0],
+            inclusive[..., 1] - inclusive[..., 0],
+            (inclusive[..., 1] - inclusive[..., 0])
+            - (external[..., 1] - external[..., 0]),
+        ], axis=-1)
+
+    means, base = estimates(total)
+    draw_values = (multipliers @ values.reshape(journal_n, -1)).reshape(
+        BOOTSTRAPS, 2, 9,
+    )
+    _, draws = estimates(draw_values)
+    output = []
+    for index, name in enumerate(("external", "inclusive", "inclusive_minus_external")):
+        se = float(draws[:, index].std(ddof=1))
+        output.append({
+            "estimand": name, "estimate": base[index], "se": se,
+            "ci_low": base[index] - 1.96 * se, "ci_high": base[index] + 1.96 * se,
+            "bootstrap_ci_low": np.quantile(draws[:, index], 0.025),
+            "bootstrap_ci_high": np.quantile(draws[:, index], 0.975),
+            "near_broad": means[0, 0] + (means[0, 3] if index else 0),
+            "near_specialized": means[1, 0] + (means[1, 3] if index else 0),
+            "distant_broad": means[0, 2] + (means[0, 5] if index else 0),
+            "distant_specialized": means[1, 2] + (means[1, 5] if index else 0),
+            "same_journal_nonself_edges": same_nonself,
+            "same_journal_unclassified_edges": same_unclassified,
+        })
+    con.execute("DROP TABLE network_joined_edges")
+    frame = pd.DataFrame(output)
+    log(f"same-journal sensitivity external={base[0]:.6f} inclusive={base[1]:.6f} "
+        f"delta={base[2]:.6f} edges={same_nonself:,}")
+    return frame
 
 
 def citation_dynamics(con, journal_n, multipliers):
@@ -510,6 +594,7 @@ def main():
     rng = np.random.default_rng(SEED)
     multipliers = rng.poisson(1, size=(BOOTSTRAPS, journal_n)).astype(np.float64)
     dynamics = citation_dynamics(con, journal_n, multipliers)
+    same_journal = same_journal_sensitivity(con, journal_n, multipliers)
     focal_draws = (multipliers @ focal_n_j.reshape(journal_n, -1)).reshape(
         BOOTSTRAPS, 2, MACROS,
     )
@@ -569,7 +654,7 @@ def main():
 
     frames = {
         "nodes": nodes, "edges": edge_output, "metrics": metrics, "lodo": lodo,
-        "dynamics": dynamics,
+        "dynamics": dynamics, "same_journal": same_journal,
     }
     for name, frame in frames.items():
         if frame.empty or frame.isna().any().any():
@@ -593,6 +678,7 @@ def main():
         "nodes": len(nodes), "edge_cells": len(edge_output),
         "bootstrap_draws": BOOTSTRAPS, "leave_one_domain_out_rows": len(lodo),
         "citation_dynamics_rows": len(dynamics),
+        "same_journal_sensitivity_rows": len(same_journal),
     }, {
         "model_commit": MODEL_REVISION,
         "window": "[publication_date, publication_date + 60 months)",
@@ -604,6 +690,7 @@ def main():
         "display_edges": "off-diagonal edges selected without arm labels to reach 50% of pooled cross-domain standardized mass",
         "bootstrap": "journal-cluster Poisson(1), shared across arms and metrics",
         "citation_dynamics": "Hajek IPW cumulative distant, any distant, and additional-after-first at 12-month intervals on fixed downstream support",
+        "same_journal_sensitivity": "Hajek IPW external versus all non-shared-author citations on fixed downstream support",
         "configuration_null": "directed source/destination independence; semantic-span null preserves standardized leaf margins",
         "exclusions": dict(zip(
             ["support_edges", "missing_citing_journal", "same_journal", "shared_author",
