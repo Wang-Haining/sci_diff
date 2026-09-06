@@ -637,7 +637,7 @@ def figure3(estimates, subgroups, tests):
            colors=[TEAL, NAVY], markers=["o", "s"], transform=percent_ratio)
     axes[3].set(xlabel="Q4 − Q1 change (%)", title="Author history")
     for label, axis in zip("abcd", axes):
-        panel_label(axis, label)
+        panel_label(axis, label, x=-0.28, y=1.07)
     return source, save(fig, "figure4_boundaries_modifiers")
 
 
