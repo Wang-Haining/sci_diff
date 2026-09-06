@@ -34,7 +34,7 @@ def estimate(frame, outcome, weights=None):
 
 
 def analyze_role(frame, role):
-    data = frame[frame.role.eq(role)].reset_index(drop=True)
+    data = frame[frame.author_role.eq(role)].reset_index(drop=True)
     authors, codes = np.unique(data.author_id, return_inverse=True)
     far = estimate(data, "far")
     near = estimate(data, "near")
@@ -61,7 +61,7 @@ def main():
     con.execute("SET threads=32")
     query = """
       WITH authors AS (
-        SELECT id,publication_year,semantic_cluster,first_author_id author_id,'first' role
+        SELECT id,publication_year,semantic_cluster,first_author_id author_id,'first' author_role
         FROM read_parquet(?) WHERE first_author_id IS NOT NULL
         UNION ALL
         SELECT id,publication_year,semantic_cluster,last_author_id,'last'
@@ -71,7 +71,7 @@ def main():
         FROM authors a JOIN read_parquet(?) d USING (id)
         JOIN read_parquet(?) s USING (id)
       )
-      SELECT role,author_id,publication_year,semantic_cluster,
+      SELECT author_role,author_id,publication_year,semantic_cluster,
         count(*) FILTER (WHERE treatment=0) n0,count(*) FILTER (WHERE treatment=1) n1,
         sum(near) FILTER (WHERE treatment=0) near0,sum(near) FILTER (WHERE treatment=1) near1,
         sum(far) FILTER (WHERE treatment=0) far0,sum(far) FILTER (WHERE treatment=1) far1,
