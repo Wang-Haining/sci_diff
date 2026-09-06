@@ -75,6 +75,7 @@ SOURCE_FILES = [
     "SourceData_Figure3_nodes.csv", "SourceData_Figure3_edges.csv",
     "SourceData_Figure3_metrics.csv", "SourceData_Figure3_lodo.csv",
     "SourceData_Figure4_estimates.csv", "SourceData_Figure4_tests.csv",
+    "SourceData_Figure4_same_author.csv",
     "SourceData_ED1_cohort_coverage.csv", "SourceData_ED2_balance.csv",
     "SourceData_ED2_propensity_candidates.csv", "SourceData_ED2_propensity_bins.csv",
     "SourceData_ED3_sensitivities.csv", "SourceData_ED4_subgroups.csv",
@@ -300,18 +301,27 @@ def read_inputs():
         RESULTS / "citation_dynamics.csv",
         ["horizon_months", "outcome", "specialized_minus_broad", "ci_low", "ci_high"],
     )
+    same_author = load_csv(
+        RESULTS / "same_author_sensitivity.csv",
+        ["author_role", "strata", "authors", "papers", "theta",
+         "bootstrap_ci_low", "bootstrap_ci_high", "bootstrap_draws"],
+    )
     require_finite(same_journal, "same-journal sensitivity",
                    ["estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"])
     require_finite(dynamics, "citation dynamics",
                    ["horizon_months", "specialized_minus_broad", "ci_low", "ci_high"])
+    require_finite(same_author, "same-author sensitivity",
+                   ["strata", "authors", "papers", "theta",
+                    "bootstrap_ci_low", "bootstrap_ci_high", "bootstrap_draws"])
     if set(same_journal.estimand) != {"external", "inclusive", "inclusive_minus_external"} \
-            or len(dynamics) != 15:
-        raise ValueError("unexpected same-journal or citation-dynamics rows")
+            or len(dynamics) != 15 or set(same_author.author_role) != {"first", "last"}:
+        raise ValueError("unexpected sensitivity-analysis rows")
     validate_subgroups(subgroups, tests, labels)
     nodes = nodes.merge(labels[["qwen_macro", "display_label"]], on="qwen_macro",
                         validate="one_to_one")
     validate_network(nodes, edges, metrics, lodo)
-    return estimates, subgroups, tests, labels, nodes, edges, metrics, lodo, same_journal, dynamics
+    return (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
+            same_journal, dynamics, same_author)
 
 
 def estimate_row(estimates, analysis, outcome):
@@ -602,9 +612,7 @@ def normalized_figure3_source(estimates, subgroups):
 
 
 def relevant_figure3_tests(tests):
-    names = ["paper_venue_fit_q4_minus_q1", "paper_venue_fit_continuous",
-             "author_audience_breadth_q4_minus_q1",
-             "author_publication_experience_q4_minus_q1"]
+    names = ["paper_venue_fit_q4_minus_q1", "paper_venue_fit_continuous"]
     frame = tests.set_index("test").loc[names].reset_index()
     columns = ["test", "modifier", "status", "estimate", "se", "ci_low", "ci_high",
                "bootstrap_ci_low", "bootstrap_ci_high", "p_value"]
@@ -612,15 +620,11 @@ def relevant_figure3_tests(tests):
     return frame[columns]
 
 
-def figure3(estimates, subgroups, tests):
+def figure3(estimates, subgroups, tests, same_author):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     reference = estimate_row(estimates, "primary", "reference_routing")
     adjusted = estimate_row(estimates, "reference_adjusted", "far_to_near_routing")
     breadth = subgroup_frame(subgroups, "paper_venue_fit")
-    author_tests = relevant_figure3_tests(tests).set_index("test").loc[[
-        "author_audience_breadth_q4_minus_q1",
-        "author_publication_experience_q4_minus_q1",
-    ]].reset_index()
     source = normalized_figure3_source(estimates, subgroups)
 
     fig, axes = plt.subplots(1, 4, figsize=(MAIN_WIDTH, 2.75), constrained_layout=True,
@@ -639,10 +643,13 @@ def figure3(estimates, subgroups, tests):
            colors=[NAVY] * 4, transform=percent_ratio)
     axes[2].set(xlabel="Distant / nearby change (%)", title="Reference breadth")
 
-    forest(axes[3], author_tests,
-           ["First/last-author breadth", "Team prior output"],
+    author = same_author.rename(columns={"theta": "estimate",
+                                         "bootstrap_ci_low": "ci_low",
+                                         "bootstrap_ci_high": "ci_high"})
+    author = author.set_index("author_role").loc[["first", "last"]].reset_index()
+    forest(axes[3], author, ["Same first author", "Same last author"],
            colors=[TEAL, NAVY], markers=["o", "s"], transform=percent_ratio)
-    axes[3].set(xlabel="Q4 − Q1 change (%)", title="Author history")
+    axes[3].set(xlabel="Distant / nearby change (%)", title="Within-author comparison")
     for label, axis in zip("abcd", axes):
         panel_label(axis, label, x=-0.28, y=1.07)
     return source, save(fig, "figure4_boundaries_modifiers")
@@ -1173,7 +1180,7 @@ def main():
     style()
 
     (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-     same_journal, dynamics) = read_inputs()
+     same_journal, dynamics, same_author) = read_inputs()
     manifests = {
         "v2_exposure": load_json(V2_ARTIFACTS / "run_exposure.json"),
         "v2_dirty": load_json(V2_ARTIFACTS / "run_dirty_analyze.json"),
@@ -1204,12 +1211,14 @@ def main():
     paths += new_paths
     write_source("SourceData_Figure2.csv", figure2_source, "Figure 2", "a-d",
                  "results/qss_v3/dirty_estimates.csv")
-    figure3_source, new_paths = figure3(estimates, subgroups, tests)
+    figure3_source, new_paths = figure3(estimates, subgroups, tests, same_author)
     paths += new_paths
     write_source("SourceData_Figure4_estimates.csv", figure3_source, "Figure 4", "a-d",
                  "results/qss_v3/dirty_estimates.csv;results/qss_v3/subgroup_estimates.csv")
     write_source("SourceData_Figure4_tests.csv", relevant_figure3_tests(tests),
-                 "Figure 4", "c-d", "results/qss_v3/subgroup_tests.csv")
+                 "Figure 4", "c", "results/qss_v3/subgroup_tests.csv")
+    write_source("SourceData_Figure4_same_author.csv", same_author,
+                 "Figure 4", "d", "results/qss_v3/same_author_sensitivity.csv")
     paths += figure4(nodes, edges, metrics, lodo)
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
