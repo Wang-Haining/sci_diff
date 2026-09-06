@@ -42,6 +42,7 @@ OUTPUTS = {
     "edges": RESULTS / "network_edges.csv",
     "metrics": RESULTS / "network_metrics.csv",
     "lodo": RESULTS / "network_leave_one_domain_out.csv",
+    "dynamics": RESULTS / "citation_dynamics.csv",
 }
 
 
@@ -174,6 +175,7 @@ def validate_inputs(con, leaf_to_macro, expected_qwen):
       CREATE TEMP TABLE network_support AS
       SELECT s.id,j.journal_code,s.journal_id,s.treatment,s.propensity,
              s.qwen_macro AS source_macro,q.qwen_leaf AS source_leaf,c.author_ids,
+             c.publication_date AS focal_date,
              CASE WHEN s.treatment=1 THEN 1.0/s.propensity
                   ELSE 1.0/(1.0-s.propensity) END AS ipw
       FROM read_parquet(?) s
@@ -199,7 +201,8 @@ def validate_inputs(con, leaf_to_macro, expected_qwen):
 def build_eligible_edges(con):
     con.execute("""
       CREATE TEMP TABLE network_joined_edges AS
-      SELECT s.journal_code,s.treatment,s.source_macro,s.source_leaf,s.ipw,
+      SELECT s.id,s.journal_code,s.treatment,s.source_macro,s.source_leaf,s.ipw,
+             s.focal_date,e.citing_date,
              qc.qwen_leaf AS target_leaf,m.frozen_macro AS target_macro,
              c.journal_id=s.journal_id AS same_journal,
              COALESCE(list_has_any(c.author_ids,s.author_ids),false) AS shared_author,
@@ -231,7 +234,8 @@ def build_eligible_edges(con):
         raise ValueError(f"citation exclusion decomposition failed: {decomposition}")
     con.execute("""
       CREATE TEMP TABLE network_eligible_edges AS
-      SELECT journal_code,treatment,source_macro,target_macro,source_leaf,target_leaf,ipw
+      SELECT id,journal_code,treatment,source_macro,target_macro,source_leaf,target_leaf,
+             ipw,focal_date,citing_date
       FROM network_joined_edges
       WHERE same_journal=false AND NOT shared_author AND classified
     """)
@@ -243,6 +247,72 @@ def build_eligible_edges(con):
         )
     ))
     return decomposition
+
+
+def citation_dynamics(con, journal_n, multipliers):
+    horizons = pd.DataFrame({"horizon_months": [12, 24, 36, 48, 60]})
+    con.register("citation_horizons", horizons)
+    reader = con.execute("""
+      WITH paper AS (
+        SELECT s.journal_code,s.treatment,s.id,s.ipw,h.horizon_months,
+               count(e.citing_date) FILTER (
+                 WHERE e.target_macro<>e.source_macro
+                   AND e.citing_date<s.focal_date+h.horizon_months*INTERVAL 1 MONTH
+               ) AS distant
+        FROM network_support s CROSS JOIN citation_horizons h
+        LEFT JOIN network_eligible_edges e ON s.id=e.id
+        GROUP BY ALL
+      )
+      SELECT journal_code,treatment,horizon_months,sum(ipw) AS denominator,
+             sum(ipw*distant) AS distant,
+             sum(ipw*(distant>0)::INTEGER) AS any_distant,
+             sum(ipw*greatest(distant-1,0)) AS additional_after_first
+      FROM paper GROUP BY ALL ORDER BY journal_code,treatment,horizon_months
+    """).fetch_record_batch(100_000)
+    values = np.zeros((journal_n, 2, len(horizons), 4), dtype=np.float64)
+    horizon_index = {value: index for index, value in enumerate(horizons.horizon_months)}
+    rows = 0
+    for batch in reader:
+        columns = [batch.column(i).to_numpy(zero_copy_only=False) for i in range(7)]
+        for journal, arm, horizon, denominator, distant, any_distant, additional in zip(*columns):
+            values[journal, arm, horizon_index[horizon]] = (
+                denominator, distant, any_distant, additional,
+            )
+        rows += len(batch)
+    if rows <= 0 or np.any(values.sum(axis=0)[..., 0] <= 0):
+        raise ValueError(f"invalid citation-dynamics aggregation rows={rows}")
+
+    def means(array):
+        return array[..., 1:] / array[..., [0]]
+
+    base = means(values.sum(axis=0))
+    draws = means((multipliers @ values.reshape(journal_n, -1)).reshape(
+        BOOTSTRAPS, 2, len(horizons), 4,
+    ))
+    if not np.allclose(base[..., 0], base[..., 1] + base[..., 2], atol=1e-10) \
+            or not np.allclose(draws[..., 0], draws[..., 1] + draws[..., 2], atol=1e-10):
+        raise ValueError("expected distant = any distant + additional-after-first exactly")
+    output = []
+    names = ["distant_citations", "any_distant", "additional_after_first"]
+    for horizon_index_, horizon in enumerate(horizons.horizon_months):
+        for outcome_index, outcome in enumerate(names):
+            contrast = base[1, horizon_index_, outcome_index] - base[0, horizon_index_, outcome_index]
+            contrast_draws = (draws[:, 1, horizon_index_, outcome_index]
+                              - draws[:, 0, horizon_index_, outcome_index])
+            se = float(contrast_draws.std(ddof=1))
+            output.append({
+                "horizon_months": int(horizon), "outcome": outcome,
+                "broad": base[0, horizon_index_, outcome_index],
+                "specialized": base[1, horizon_index_, outcome_index],
+                "specialized_minus_broad": contrast, "se": se,
+                "ci_low": contrast - 1.96 * se, "ci_high": contrast + 1.96 * se,
+                "bootstrap_ci_low": np.quantile(contrast_draws, 0.025),
+                "bootstrap_ci_high": np.quantile(contrast_draws, 0.975),
+            })
+    frame = pd.DataFrame(output)
+    log(f"citation dynamics rows={len(frame)} endpoint="
+        f"{frame.loc[(frame.horizon_months==60) & (frame.outcome=='distant_citations'), 'specialized_minus_broad'].iloc[0]:.6f}")
+    return frame
 
 
 def fill_dense(con, journal_n, distances):
@@ -439,6 +509,7 @@ def main():
     base = network_values(focal_n, weighted, distance_sum)
     rng = np.random.default_rng(SEED)
     multipliers = rng.poisson(1, size=(BOOTSTRAPS, journal_n)).astype(np.float64)
+    dynamics = citation_dynamics(con, journal_n, multipliers)
     focal_draws = (multipliers @ focal_n_j.reshape(journal_n, -1)).reshape(
         BOOTSTRAPS, 2, MACROS,
     )
@@ -496,7 +567,10 @@ def main():
         "self_retention_difference": diagonal.row_share_difference,
     }).merge(labels[["qwen_macro", "representative_journals"]], on="qwen_macro", validate="one_to_one")
 
-    frames = {"nodes": nodes, "edges": edge_output, "metrics": metrics, "lodo": lodo}
+    frames = {
+        "nodes": nodes, "edges": edge_output, "metrics": metrics, "lodo": lodo,
+        "dynamics": dynamics,
+    }
     for name, frame in frames.items():
         if frame.empty or frame.isna().any().any():
             raise ValueError(f"expected complete nonempty {name}, got rows={len(frame)} "
@@ -518,6 +592,7 @@ def main():
         "support_citation_edges": decomposition[0], "eligible_edges": decomposition[7],
         "nodes": len(nodes), "edge_cells": len(edge_output),
         "bootstrap_draws": BOOTSTRAPS, "leave_one_domain_out_rows": len(lodo),
+        "citation_dynamics_rows": len(dynamics),
     }, {
         "model_commit": MODEL_REVISION,
         "window": "[publication_date, publication_date + 60 months)",
@@ -528,6 +603,7 @@ def main():
         "layout": "classical MDS of 1-cosine macro-centroid distances; standard MDS squares dissimilarities in the double-centering step",
         "display_edges": "off-diagonal edges selected without arm labels to reach 50% of pooled cross-domain standardized mass",
         "bootstrap": "journal-cluster Poisson(1), shared across arms and metrics",
+        "citation_dynamics": "Hajek IPW cumulative distant, any distant, and additional-after-first at 12-month intervals on fixed downstream support",
         "configuration_null": "directed source/destination independence; semantic-span null preserves standardized leaf margins",
         "exclusions": dict(zip(
             ["support_edges", "missing_citing_journal", "same_journal", "shared_author",
