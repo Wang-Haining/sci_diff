@@ -1,4 +1,4 @@
-qwen_macro,mds_x,mds_y,source_share,focal_broad,focal_specialized,self_retention_broad,self_retention_specialized,self_retention_difference,representative_journals,display_label
+internal_domain_id,mds_x,mds_y,source_share,focal_broad,focal_specialized,self_retention_broad,self_retention_specialized,self_retention_difference,representative_journals,display_label
 0,-0.0342046685203113,0.1105958442580206,0.0375919891124499,63093.0,80790.0,0.5949314256006873,0.6178524371140812,0.0229210115133938,Applied Economics; Journal of Nutrition Education and Behavior; Applied Economics Letters,"Business, economics & policy"
 1,0.0523277439937151,0.0167516361008601,0.0215812395117323,35590.0,47012.0,0.5129430551103703,0.5437936030214495,0.0308505479110792,Abstracts with programs - Geological Society of America; Atmospheric Environment; The Science of The Total Environment,Earth & environmental science
 2,-0.0591192525510592,-0.0742028748224163,0.0141980738818197,25578.0,28765.0,0.4217484806601694,0.4679929978412346,0.0462445171810651,The FASEB Journal; Fertility and Sterility; Case Medical Research,"Reproduction, metabolism & animal science"

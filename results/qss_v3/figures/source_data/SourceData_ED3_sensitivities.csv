@@ -13,3 +13,19 @@ a,Deterministic refit,estimate,-0.08245270348646583,artifacts/qss_v3/run_downstr
 d,Top 0.1% papers,flow_share,0.07489539294869885,artifacts/qss_v3/run_analyze.json
 d,Nearby citations,winsor_cap,96.0,artifacts/qss_v3/run_analyze.json
 d,Distant citations,winsor_cap,129.0,artifacts/qss_v3/run_analyze.json
+c,external,estimate,-0.1712669354066914,results/qss_v3/same_journal_sensitivity.csv
+c,external,ci_low,-0.2370474392607046,results/qss_v3/same_journal_sensitivity.csv
+c,external,ci_high,-0.1054864315526783,results/qss_v3/same_journal_sensitivity.csv
+c,external,bootstrap_ci_low,-0.2346013439036288,results/qss_v3/same_journal_sensitivity.csv
+c,external,bootstrap_ci_high,-0.1011386638727692,results/qss_v3/same_journal_sensitivity.csv
+c,inclusive,estimate,-0.2022899578394942,results/qss_v3/same_journal_sensitivity.csv
+c,inclusive,ci_low,-0.2714512678787561,results/qss_v3/same_journal_sensitivity.csv
+c,inclusive,ci_high,-0.1331286478002323,results/qss_v3/same_journal_sensitivity.csv
+c,inclusive,bootstrap_ci_low,-0.2669035581043119,results/qss_v3/same_journal_sensitivity.csv
+c,inclusive,bootstrap_ci_high,-0.1282985378742778,results/qss_v3/same_journal_sensitivity.csv
+d,Cross-fitted AIPW,estimate,-0.0057634037078854,results/qss_v3/dirty_estimates.csv
+d,Cross-fitted AIPW,ci_low,-0.0138256413259536,results/qss_v3/dirty_estimates.csv
+d,Cross-fitted AIPW,ci_high,0.0022988339101826,results/qss_v3/dirty_estimates.csv
+d,Fixed-support IPW,estimate,-0.0462083363162971,results/qss_v3/citation_dynamics.csv
+d,Fixed-support IPW,ci_low,-0.0949912861292605,results/qss_v3/citation_dynamics.csv
+d,Fixed-support IPW,ci_high,0.0025746134966662,results/qss_v3/citation_dynamics.csv
