@@ -1,4 +1,4 @@
-omitted_source_macro,metric,broad,specialized,contrast_specialized_minus_broad,direction_concordant,omitted_source_domain
+omitted_internal_domain_id,metric,broad,specialized,contrast_specialized_minus_broad,direction_concordant,omitted_source_domain
 0,directed_modularity,0.4787638660552605,0.5078149673557291,0.0290511013004685,True,"Business, economics & policy"
 0,audience_participation,0.7201631982780139,0.6857570623907291,-0.0344061358872848,True,"Business, economics & policy"
 0,semantic_span,0.125168804178829,0.1158837806773434,-0.0092850235014856,True,"Business, economics & policy"
