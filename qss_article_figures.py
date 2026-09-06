@@ -664,7 +664,8 @@ def metric_axis(axis, row, title):
     axis.scatter(null, -0.18, marker="x", s=14, color=MID_GRAY, linewidth=0.7)
     axis.set_yticks([])
     axis.set_title(title, fontsize=6, pad=2)
-    axis.text(0.02, 0.02, "× null", transform=axis.transAxes, color=MID_GRAY, fontsize=5)
+    axis.text(0.02, 0.02, "× configuration-model\nexpectation",
+              transform=axis.transAxes, color=MID_GRAY, fontsize=4.7)
 
 
 def lodo_axis(axis, values, full, title):
@@ -734,11 +735,10 @@ def figure4(nodes, edges, metrics, lodo):
                              interpolation="nearest", aspect="equal")
     heat_ticks = np.arange(0, 32, 4)
     heat_axis.set(xticks=heat_ticks, yticks=heat_ticks,
-                  xlabel="Citing research domain (same order as rows)",
-                  title="All domain-to-domain cells")
-    heat_labels = ["Business/economics", "Plant/microbiology", "Humanities/politics",
-                   "Computing/networks", "Public health/care", "Civil/structural eng.",
-                   "Astronomy/imaging", "Education/language"]
+                  xlabel="Citing research area (same order as rows)",
+                  title="All area-to-area cells")
+    label_index = nodes.set_index("qwen_macro").display_label
+    heat_labels = [textwrap.fill(label_index.loc[int(tick)], 18) for tick in heat_ticks]
     heat_axis.set_xticklabels(heat_labels, rotation=50, ha="right", fontsize=5.5)
     heat_axis.set_yticklabels(heat_labels, fontsize=5.5)
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
@@ -746,7 +746,8 @@ def figure4(nodes, edges, metrics, lodo):
     colorbar.ax.tick_params(labelsize=5.5)
 
     ordered_metrics = ["directed_modularity", "audience_participation", "semantic_span"]
-    short = ["Directed Q", "Participation", "Semantic span"]
+    short = ["Within-area\nconcentration", "Diversity of\nciting areas",
+             "Mean text\ndistance"]
     indexed = metrics.set_index("metric")
     for axis, metric, title in zip(metric_axes, ordered_metrics, short):
         metric_axis(axis, indexed.loc[metric], title)
@@ -760,7 +761,7 @@ def figure4(nodes, edges, metrics, lodo):
         lodo_axis(axis, values, indexed.loc[metric, "contrast_specialized_minus_broad"], title)
     lodo_axes[0].text(-0.28, 1.26, "d", transform=lodo_axes[0].transAxes,
                       fontsize=8, fontweight="bold")
-    lodo_axes[1].text(0.5, 1.26, "Direction after omitting each source domain",
+    lodo_axes[1].text(0.5, 1.26, "Direction after omitting each focal research area",
                       transform=lodo_axes[1].transAxes, ha="center", fontsize=7)
     panel_label(network_axis, "a", x=-0.08)
     panel_label(heat_axis, "b", x=-0.13)
@@ -921,7 +922,13 @@ def extended_data2(bins, balance, candidates):
 
     axis = axes[0, 1]
     y = np.arange(len(candidates))[::-1]
-    names = candidates.candidate.str.replace("_", " ").tolist()
+    candidate_labels = {
+        "primary_leaves_63": "63-leaf propensity model (selected)",
+        "primary_leaves_255": "255-leaf propensity model",
+        "reference_adjusted": "Reference-adjusted model",
+        "downstream_deterministic": "Refit for subgroup and network analyses",
+    }
+    names = candidates.candidate.map(candidate_labels).tolist()
     axis.scatter(100 * candidates.support, y, color=NAVY, s=20)
     for yi, row in zip(y, candidates.itertuples()):
         axis.text(100 * row.support + 0.8, yi,

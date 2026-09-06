@@ -22,6 +22,7 @@ from qss_v3_common import (
 )
 
 SCORES = V3_WORK / "routing_scores.parquet"
+ANALYSIS = V3_WORK / "analysis_dataset.parquet"
 EDGES = V3_WORK / "citation_edges"
 CITING = V3_WORK / "citing_metadata"
 CANDIDATE = V3_WORK / "candidate_focal.parquet"
@@ -44,6 +45,7 @@ OUTPUTS = {
     "lodo": RESULTS / "network_leave_one_domain_out.csv",
     "dynamics": RESULTS / "citation_dynamics.csv",
     "same_journal": RESULTS / "same_journal_sensitivity.csv",
+    "score_diagnostics": RESULTS / "round2_score_diagnostics.csv",
 }
 
 
@@ -247,6 +249,82 @@ def build_eligible_edges(con):
         )
     ))
     return decomposition
+
+
+def score_diagnostics(con, journal_n, multipliers):
+    reader = con.execute("""
+      WITH scored AS (
+        SELECT j.journal_code,s.treatment,a.january_1,
+               s.psi_near_0,s.psi_near_1,s.psi_far_0,s.psi_far_1,
+          CASE WHEN s.treatment=1 THEN s.psi_near_0
+               ELSE (a.near-(1-s.propensity)*s.psi_near_0)/s.propensity END AS m_near_0,
+          CASE WHEN s.treatment=0 THEN s.psi_near_1
+               ELSE (a.near-s.propensity*s.psi_near_1)/(1-s.propensity) END AS m_near_1,
+          CASE WHEN s.treatment=1 THEN s.psi_far_0
+               ELSE (a.far-(1-s.propensity)*s.psi_far_0)/s.propensity END AS m_far_0,
+          CASE WHEN s.treatment=0 THEN s.psi_far_1
+               ELSE (a.far-s.propensity*s.psi_far_1)/(1-s.propensity) END AS m_far_1
+        FROM read_parquet(?) s JOIN read_parquet(?) a USING (id)
+        JOIN network_journals j USING (journal_id)
+      ), stacked AS (
+        SELECT *,0 AS subset FROM scored
+        UNION ALL SELECT *,1 FROM scored WHERE NOT january_1
+      )
+      SELECT journal_code,subset,count(*) AS n,
+             count(*) FILTER (WHERE treatment=0) AS broad_n,
+             count(*) FILTER (WHERE treatment=1) AS specialized_n,
+             sum(psi_near_0),sum(psi_near_1),sum(psi_far_0),sum(psi_far_1),
+             sum(m_near_0),sum(m_near_1),sum(m_far_0),sum(m_far_1)
+      FROM stacked GROUP BY ALL ORDER BY journal_code,subset
+    """, [str(SCORES), str(ANALYSIS)]).fetchall()
+    values = np.zeros((journal_n, 2, 11), dtype=np.float64)
+    for row in reader:
+        values[row[0], row[1]] = row[2:]
+    totals = values.sum(axis=0)
+    if int(totals[0, 0]) != load_json(DOWNSTREAM_RUN)["counts"]["support"] \
+            or not 0 < totals[1, 0] < totals[0, 0]:
+        raise ValueError(f"score diagnostic population QC failed: {totals[:, :3]}")
+    jan_rates = (totals[0, 1:3] - totals[1, 1:3]) / totals[0, 1:3]
+    output = []
+    for subset, population in enumerate(("all_support", "exclude_january_1")):
+        for estimator, start in (("aipw", 3), ("outcome_model_only", 7)):
+            n = totals[subset, 0]
+            means = totals[subset, start:start + 4] / n
+            if np.any(means <= 0) or not np.isfinite(means).all():
+                raise ValueError(f"invalid {population} {estimator} means: {means}")
+            theta = np.log(means[3]) - np.log(means[1]) \
+                - np.log(means[2]) + np.log(means[0])
+            centered = values[:, subset, start:start + 4] \
+                - values[:, subset, 0][:, None] * means
+            influence = centered[:, 3] / means[3] - centered[:, 1] / means[1] \
+                - centered[:, 2] / means[2] + centered[:, 0] / means[0]
+            groups = int(np.count_nonzero(values[:, subset, 0]))
+            se = np.sqrt((groups / (groups - 1)) * np.square(influence).sum() / n ** 2)
+            draws = multipliers @ values[:, subset]
+            draw_means = draws[:, start:start + 4] / draws[:, [0]]
+            draw_theta = np.log(draw_means[:, 3]) - np.log(draw_means[:, 1]) \
+                - np.log(draw_means[:, 2]) + np.log(draw_means[:, 0])
+            output.append({
+                "population": population, "estimator": estimator, "n": int(n),
+                "journals": groups, "broad_n": int(totals[subset, 1]),
+                "specialized_n": int(totals[subset, 2]), "near_broad": means[0],
+                "near_specialized": means[1], "distant_broad": means[2],
+                "distant_specialized": means[3], "estimate": theta,
+                "relative_change": np.exp(theta) - 1, "se": se,
+                "ci_low": theta - 1.96 * se, "ci_high": theta + 1.96 * se,
+                "bootstrap_ci_low": np.quantile(draw_theta, 0.025),
+                "bootstrap_ci_high": np.quantile(draw_theta, 0.975),
+                "january_1_rate_broad": jan_rates[0],
+                "january_1_rate_specialized": jan_rates[1],
+            })
+    frame = pd.DataFrame(output)
+    expected = load_json(DOWNSTREAM_RUN)["extra"]["reproduced_theta"]
+    actual = frame.loc[(frame.population == "all_support")
+                       & (frame.estimator == "aipw"), "estimate"].iloc[0]
+    if not np.isclose(actual, expected, rtol=0, atol=1e-10):
+        raise ValueError(f"expected downstream theta {expected}, got {actual}")
+    log(f"score diagnostics rows={len(frame)} non-Jan-1={int(totals[1, 0]):,}")
+    return frame
 
 
 def same_journal_sensitivity(con, journal_n, multipliers):
@@ -593,6 +671,7 @@ def main():
     base = network_values(focal_n, weighted, distance_sum)
     rng = np.random.default_rng(SEED)
     multipliers = rng.poisson(1, size=(BOOTSTRAPS, journal_n)).astype(np.float64)
+    diagnostics = score_diagnostics(con, journal_n, multipliers)
     dynamics = citation_dynamics(con, journal_n, multipliers)
     same_journal = same_journal_sensitivity(con, journal_n, multipliers)
     focal_draws = (multipliers @ focal_n_j.reshape(journal_n, -1)).reshape(
@@ -655,6 +734,7 @@ def main():
     frames = {
         "nodes": nodes, "edges": edge_output, "metrics": metrics, "lodo": lodo,
         "dynamics": dynamics, "same_journal": same_journal,
+        "score_diagnostics": diagnostics,
     }
     for name, frame in frames.items():
         if frame.empty or frame.isna().any().any():
@@ -679,6 +759,7 @@ def main():
         "bootstrap_draws": BOOTSTRAPS, "leave_one_domain_out_rows": len(lodo),
         "citation_dynamics_rows": len(dynamics),
         "same_journal_sensitivity_rows": len(same_journal),
+        "score_diagnostic_rows": len(diagnostics),
     }, {
         "model_commit": MODEL_REVISION,
         "window": "[publication_date, publication_date + 60 months)",
@@ -691,6 +772,12 @@ def main():
         "bootstrap": "journal-cluster Poisson(1), shared across arms and metrics",
         "citation_dynamics": "Hajek IPW cumulative distant, any distant, and additional-after-first at 12-month intervals on fixed downstream support",
         "same_journal_sensitivity": "Hajek IPW external versus all non-shared-author citations on fixed downstream support",
+        "score_diagnostics": "No-refit AIPW and reconstructed outcome-model predictions, with a fixed-score exclusion of January 1 focal dates",
+        "score_diagnostic_estimates": {
+            f"{row.population}:{row.estimator}": float(row.estimate)
+            for row in diagnostics.itertuples()
+        },
+        "reference_version_limitation": "OpenAlex exposes one work-level referenced_works list; location version tags do not carry separate reference lists, so preprint-versus-journal reference change is not identifiable from this snapshot",
         "configuration_null": "directed source/destination independence; semantic-span null preserves standardized leaf margins",
         "exclusions": dict(zip(
             ["support_edges", "missing_citing_journal", "same_journal", "shared_author",
