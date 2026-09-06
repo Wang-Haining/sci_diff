@@ -448,7 +448,7 @@ def measurement_data(con, nodes, exposure_run):
                                       ("middle excluded", 0.49, 0.48, 2),
                                       ("specialized", 0.70, 0.66, 1),
                                       ("specialized", 0.82, 0.32, 1))]
-    rows += [{"panel": "d", "mark": "named research domain", "item": r.display_label,
+    rows += [{"panel": "d", "mark": "named research area", "item": r.display_label,
               "x": r.mds_x, "y": r.mds_y, "value": r.source_share}
              for r in nodes.itertuples()]
     return scope, split, pd.DataFrame(rows)
@@ -493,7 +493,10 @@ def figure1(con, nodes, exposure_run):
                   color=[item[2] for item in checks], s=12, zorder=2)
     inset.set(xlim=(0, 1), xticks=[0, 0.5, 1], yticks=y,
               yticklabels=[item[0] for item in checks])
+    inset.set_facecolor(WHITE)
     inset.tick_params(axis="both", labelsize=5.5, pad=1)
+    for label in inset.get_yticklabels():
+        label.set_bbox({"facecolor": WHITE, "edgecolor": "none", "pad": 0.2})
     inset.spines[["top", "right"]].set_visible(False)
     inset.set_xlabel("Agreement", fontsize=5.5, labelpad=1)
 
@@ -511,6 +514,8 @@ def figure1(con, nodes, exposure_run):
                      transform=axis.transAxes, zorder=2, **styling)
     axis.text(0.22, 0.14, "broad", ha="center", color=SKY, transform=axis.transAxes)
     axis.text(0.76, 0.14, "specialized", ha="center", color=CORAL, transform=axis.transAxes)
+    axis.text(0.49, 0.39, "middle 50%\nnot analysed", ha="center", va="top",
+              color=MID_GRAY, transform=axis.transAxes, fontsize=5)
     axis.text(0.50, 0.89, "text-derived cluster × publication year", ha="center",
               transform=axis.transAxes, fontsize=6)
     axis.set_title("Observed text overlap", pad=3)
@@ -519,7 +524,7 @@ def figure1(con, nodes, exposure_run):
     size = 8 + 140 * nodes.source_share.to_numpy() / nodes.source_share.max()
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE, edgecolor=NAVY, lw=0.55)
     node_labels(axis, nodes, top_n=8, fontsize=5.5)
-    axis.set(xticks=[], yticks=[], title="Text-defined research domains")
+    axis.set(xticks=[], yticks=[], title="Title-derived research areas")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
         spine.set_visible(False)
@@ -561,13 +566,6 @@ def figure2(estimates):
 
     forest(axes[1], absolute, labels, colors=[MID_GRAY, MID_GRAY, GOLD, CORAL])
     axes[1].set(xlabel="Specialized minus broad", title="Specialized − broad")
-    axes[1].text(
-        0.03, 0.03,
-        f"Distant: {distant.estimate:.2f} per paper\n"
-        f"95% CI [{distant.ci_low:.2f}, {distant.ci_high:.2f}]",
-        transform=axes[1].transAxes, fontsize=5.5,
-    )
-
     effect, low, high = forest(
         axes[2], pd.DataFrame([routing]), ["Distant / nearby"], colors=[CORAL],
         transform=percent_ratio,
@@ -763,8 +761,6 @@ def figure4(nodes, edges, metrics, lodo):
                       transform=lodo_axes[1].transAxes, ha="center", fontsize=7)
     panel_label(network_axis, "a", x=-0.08)
     panel_label(heat_axis, "b", x=-0.13)
-    fig.text(0.285, 0.105, "×  configuration-model expectation",
-             ha="center", fontsize=5, color=MID_GRAY)
     fig.text(0.285, 0.075, "Specialized − broad (×100)", ha="center", fontsize=6)
     fig.text(0.735, 0.075, "Specialized − broad (×100)", ha="center", fontsize=6)
     return save(fig, "figure3_network")
@@ -1012,7 +1008,7 @@ def sensitivity_data(estimates, analyze_run, downstream_run, same_journal, dynam
         for statistic in ("estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"):
             add("b" if item != "Primary" else "a", item, statistic, row[statistic],
                 "results/qss_v3/dirty_estimates.csv")
-    add("a", "Deterministic refit", "estimate", downstream_run["extra"]["reproduced_theta"],
+    add("a", "Primary-specification rerun", "estimate", downstream_run["extra"]["reproduced_theta"],
         "artifacts/qss_v3/run_downstream.json")
     add("d", "Top 0.1% papers", "flow_share", analyze_run["extra"]["top_0_1_percent_flow_share"],
         "artifacts/qss_v3/run_analyze.json")
@@ -1049,10 +1045,10 @@ def extended_data3(estimates, analyze_run, downstream_run, same_journal, dynamic
     forest(axes[0], pd.DataFrame([primary]), ["Primary"], colors=[CORAL], transform=percent_ratio)
     axes[0].scatter(percent_ratio([deterministic]), [-0.28], marker="D", facecolor=WHITE,
                     edgecolor=NAVY, s=22, zorder=3)
-    axes[0].text(percent_ratio([deterministic])[0], -0.48, "deterministic refit\n(point only)",
+    axes[0].text(percent_ratio([deterministic])[0], -0.48, "rerun\n(point only)",
                  ha="center", fontsize=5.5)
     axes[0].set_ylim(-0.72, 0.45)
-    axes[0].set(xlabel="Ratio change (%)", title="Deterministic refit")
+    axes[0].set(xlabel="Ratio change (%)", title="Primary-specification rerun")
 
     forest(axes[1], pd.DataFrame([primary, winsor]), ["Raw counts", "99.9% winsorized"],
            colors=[CORAL, NAVY], transform=percent_ratio)
