@@ -11,7 +11,7 @@
 #SBATCH --error=/home/g91p721/logs/sci_diff_news_%j.err
 
 set -euo pipefail
-cd /home/g91p721/sci_diff_news
+cd "$SLURM_SUBMIT_DIR"
 export PYTHONUNBUFFERED=1
 source /home/group/jasonclark/g91p721/sci_diff/qss_venv/bin/activate
 python qss_news.py

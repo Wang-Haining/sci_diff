@@ -142,11 +142,20 @@ is used only to ask whether the association also appears in a different observed
 outcome: links from tracked news, blog and other web pages. It is not an external
 replication of the citation analysis and does not strengthen exchangeability.
 
-The analysis includes 2018--2020 focal papers with a DOI in the fixed OpenAlex
-snapshot. For each paper, count distinct linked web pages first observed from its
-publication date through 24 months. This interval lies wholly inside the observed
-SciSciNet newsfeed period. Report DOI availability before restriction by journal
-group.
+The analysis includes 2018--2019 focal papers that map to the SciSciNet-v2 paper
+universe and have a DOI. Treat the exact OpenAlex work ID as authoritative;
+SciSciNet paper IDs are OpenAlex work IDs, while its DOI is retained as a
+metadata-disagreement diagnostic. Rescue an unmatched paper by normalized DOI
+only when that DOI is unique among eligible focal papers and in SciSciNet.
+Report direct matches, DOI rescues, ambiguous and unmatched papers by journal
+group. This separates a true zero from a paper absent from the SciSciNet universe.
+
+For each included paper, count distinct linked web-page URLs first observed from
+1 January of its publication year through 31 December four years later. This
+calendar-year rule is identical across papers and does not give papers with an
+imputed 1 January date a longer follow-up. Report links first observed before the
+recorded publication date as a timing diagnostic. Report DOI availability before
+restriction by journal group.
 
 Refit the two prespecified propensity candidates and the binary any-page and page-
 count nuisance models in this DOI-observable cohort using the qss_v3 covariates,
@@ -157,7 +166,7 @@ each publication year and weighting-only estimates after cumulatively excluding
 the three most frequent web hosts selected from both journal groups combined.
 
 Promote the extension to the main text only if both AIPW outcomes are lower for
-narrower-scope journals with confidence intervals excluding zero, both outcomes
+narrower-scope journals with analytic and bootstrap intervals excluding zero, both outcomes
 have the same direction in every publication year, the direction remains after
 excluding the three largest hosts, and common-support retention is at least 50%.
 Standardized differences remain reported diagnostics rather than a causal gate.
