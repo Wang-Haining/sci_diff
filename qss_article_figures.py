@@ -407,13 +407,13 @@ def figure1(con, nodes, exposure_run):
                   transform=axis.transAxes, fontsize=6)
     axis.text(0.50, 0.07, "No focal or future information\nenters journal specialization",
               ha="center", transform=axis.transAxes, color=MID_GRAY, fontsize=6)
-    axis.set_title("Scope precedes publication", pad=3)
+    axis.set_title("Study timeline", pad=3)
 
     axis = axes[1]
     axis.hist(scope.semantic_title_similarity, bins=40, color=NAVY,
               edgecolor=WHITE, linewidth=0.15)
     axis.set(xlabel="Within-journal title similarity", ylabel="Journal-years",
-             title="Scope scores were reproducible without venue names")
+             title="Scope-score reproducibility")
     inset = axis.inset_axes([0.50, 0.52, 0.47, 0.43])
     split_bins = source[source.mark.eq("split-half bin")]
     inset.scatter(split_bins.x, split_bins.y, c=np.log1p(split_bins.value),
@@ -432,7 +432,7 @@ def figure1(con, nodes, exposure_run):
     for x, y, color, marker in ((0.18, 0.34, SKY, "o"), (0.30, 0.68, SKY, "o"),
                                 (0.49, 0.48, LIGHT_GRAY, "x"),
                                 (0.70, 0.66, CORAL, "s"), (0.82, 0.32, CORAL, "s")):
-        styling = {"color": color} if marker == "x" else {
+        styling = {"color": MID_GRAY} if marker == "x" else {
             "color": color, "edgecolor": INK,
         }
         axis.scatter(x, y, s=35, marker=marker, linewidth=0.4,
@@ -441,7 +441,7 @@ def figure1(con, nodes, exposure_run):
     axis.text(0.76, 0.14, "specialized", ha="center", color=CORAL, transform=axis.transAxes)
     axis.text(0.50, 0.89, "text-derived cluster × publication year", ha="center",
               transform=axis.transAxes, fontsize=6)
-    axis.set_title("Observed placements overlap in text", pad=3)
+    axis.set_title("Observed text overlap", pad=3)
 
     axis = axes[3]
     size = 9 + 190 * nodes.source_share.to_numpy() / nodes.source_share.max()
@@ -449,7 +449,7 @@ def figure1(con, nodes, exposure_run):
     for row in nodes.itertuples():
         axis.text(row.mds_x, row.mds_y, f"{int(row.qwen_macro):02d}",
                   ha="center", va="center", fontsize=5)
-    axis.set(xticks=[], yticks=[], title="Destinations use a venue-free map")
+    axis.set(xticks=[], yticks=[], title="Venue-free destination map")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
         spine.set_visible(False)
@@ -484,14 +484,13 @@ def figure2(estimates):
     axes[0].legend(frameon=False, loc="lower right", handletextpad=0.3)
 
     forest(axes[1], absolute, labels, colors=[MID_GRAY, MID_GRAY, GOLD, CORAL])
-    axes[1].set(xlabel="Specialized minus broad",
-                title="Among destinations, the largest difference was distant")
+    axes[1].set(xlabel="Specialized minus broad", title="Specialized − broad")
 
     effect, low, high = forest(
         axes[2], pd.DataFrame([routing]), ["Distant / nearby"], colors=[CORAL],
         transform=percent_ratio,
     )
-    axes[2].set(xlabel="Ratio change (%)", title="Distant / nearby ratio was lower")
+    axes[2].set(xlabel="Ratio change (%)", title="Distant / nearby ratio")
     axes[2].text(0.04, 0.08,
                  f"broad {routing.mean_broad:.2f}\nspecialized {routing.mean_specialized:.2f}",
                  transform=axes[2].transAxes, fontsize=6)
@@ -503,8 +502,7 @@ def figure2(estimates):
     axes[3].scatter([100 * any_far.mean_broad], [1], color=SKY, s=20)
     axes[3].scatter([100 * any_far.mean_specialized], [0], color=CORAL, marker="s", s=18)
     axes[3].set_yticks([1, 0], ["Broad", "Specialized"])
-    axes[3].set(xlabel="P(any distant citation), %",
-                title="No clear difference in distant-citation probability")
+    axes[3].set(xlabel="Any distant citation (%)", title="Any distant citation")
     axes[3].text(0.04, 0.07,
                  f"difference {100 * any_far.estimate:.2f} pp\n"
                  f"95% CI {100 * any_far.ci_low:.2f}, {100 * any_far.ci_high:.2f}",
@@ -571,13 +569,12 @@ def figure3(estimates, subgroups, tests):
     forest(axes[0], pd.DataFrame([primary, reference]),
            ["Later citations", "Final references"], colors=[CORAL, TEAL],
            transform=percent_ratio)
-    axes[0].set(xlabel="Ratio change (%)", title="Final references shared the direction")
+    axes[0].set(xlabel="Ratio change (%)", title="References and later citations")
 
     forest(axes[1], pd.DataFrame([primary, adjusted]),
            ["Primary", "+ reference routing"], colors=[CORAL, TEAL],
            transform=percent_ratio)
-    axes[1].set(xlabel="Ratio change (%)",
-                title="A separate reference-inclusive model was closer to zero")
+    axes[1].set(xlabel="Ratio change (%)", title="Reference-inclusive model")
 
     forest(axes[2], breadth, ["Q1 narrow refs", "Q2", "Q3", "Q4 broad refs"],
            colors=[NAVY] * 4, transform=percent_ratio)
@@ -586,8 +583,7 @@ def figure3(estimates, subgroups, tests):
     forest(axes[3], author_tests,
            ["First/last-author breadth", "Team prior output"],
            colors=[TEAL, NAVY], markers=["o", "s"], transform=percent_ratio)
-    axes[3].set(xlabel="Q4 versus Q1 ratio-of-ratios change (%)",
-                title="Author-history interactions")
+    axes[3].set(xlabel="Q4 vs Q1 change (%)", title="Author history")
     for label, axis in zip("abcd", axes):
         panel_label(axis, label)
     return source, save(fig, "figure3_boundaries_modifiers")
@@ -605,35 +601,33 @@ def curved_edge(axis, start, end, color, width, alpha, dashed=False, arrow=False
 
 
 def metric_axis(axis, row, title):
-    point = float(row.contrast_specialized_minus_broad)
-    low, high = float(row.bootstrap_ci_low), float(row.bootstrap_ci_high)
-    null = float(row.null_specialized - row.null_broad)
+    point = 100 * float(row.contrast_specialized_minus_broad)
+    low, high = 100 * float(row.bootstrap_ci_low), 100 * float(row.bootstrap_ci_high)
+    null = 100 * float(row.null_specialized - row.null_broad)
     axis.axvline(0, color=INK, lw=0.5)
     axis.errorbar(point, 0, xerr=[[point - low], [high - point]], fmt="o",
                   ms=3, color=CORAL, capsize=1.5, lw=0.8)
     axis.scatter(null, -0.18, marker="x", s=14, color=MID_GRAY, linewidth=0.7)
     axis.set_yticks([])
     axis.set_title(title, fontsize=6, pad=2)
-    axis.ticklabel_format(axis="x", style="sci", scilimits=(-2, 2), useMathText=True)
     axis.text(0.02, 0.02, "× null", transform=axis.transAxes, color=MID_GRAY, fontsize=5)
 
 
 def lodo_axis(axis, values, full, title):
-    x = values.contrast_specialized_minus_broad.to_numpy(dtype=float)
+    x = 100 * values.contrast_specialized_minus_broad.to_numpy(dtype=float)
     axis.axvline(0, color=INK, lw=0.5)
     axis.scatter(x, np.linspace(-0.16, 0.16, len(x)), s=8, facecolor=WHITE,
                  edgecolor=NAVY, linewidth=0.45, alpha=0.9)
-    axis.axvline(full, color=CORAL, lw=1.0)
+    axis.axvline(100 * full, color=CORAL, lw=1.0)
     axis.set_yticks([])
     axis.set_title(title, fontsize=6, pad=2)
-    axis.ticklabel_format(axis="x", style="sci", scilimits=(-2, 2), useMathText=True)
 
 
 def figure4(nodes, edges, metrics, lodo):
     fig = plt.figure(figsize=(MAIN_WIDTH, 5.95))
     grid = fig.add_gridspec(
         2, 2, width_ratios=[1.18, 1], height_ratios=[1.28, 0.72],
-        left=0.06, right=0.98, bottom=0.09, top=0.95, wspace=0.28, hspace=0.42,
+        left=0.06, right=0.94, bottom=0.12, top=0.95, wspace=0.30, hspace=0.56,
     )
     network_axis = fig.add_subplot(grid[0, 0])
     heat_axis = fig.add_subplot(grid[0, 1])
@@ -660,17 +654,21 @@ def figure4(nodes, edges, metrics, lodo):
         curved_edge(network_axis, start, end, CORAL if increased else SKY,
                     0.25 + 1.35 * abs(row.standardized_share_difference) / shift_max,
                     0.78, dashed=not increased, arrow=True)
-    size = 15 + 360 * nodes.source_share.to_numpy() / nodes.source_share.max()
+    size = 13 + 215 * nodes.source_share.to_numpy() / nodes.source_share.max()
     network_axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
                          edgecolor=INK, linewidth=0.55, zorder=3)
     for row in nodes.itertuples():
         network_axis.text(row.mds_x, row.mds_y, f"{int(row.qwen_macro):02d}",
                           ha="center", va="center", fontsize=5, zorder=4)
-    for row in nodes.nlargest(6, "source_share").itertuples():
-        journal = str(row.representative_journals).split(";")[0][:25]
+    centre_x, centre_y = nodes.mds_x.median(), nodes.mds_y.median()
+    for row in nodes.nlargest(4, "source_share").itertuples():
+        journal = str(row.representative_journals).split(";")[0][:18]
+        dx = 7 if row.mds_x >= centre_x else -7
+        dy = 7 if row.mds_y >= centre_y else -7
         network_axis.annotate(
             f"D{int(row.qwen_macro):02d}  {journal}", (row.mds_x, row.mds_y),
-            xytext=(5, 7), textcoords="offset points", fontsize=5,
+            xytext=(dx, dy), textcoords="offset points", fontsize=5,
+            ha="left" if dx > 0 else "right",
             arrowprops={"arrowstyle": "-", "color": MID_GRAY, "lw": 0.35},
             bbox={"facecolor": WHITE, "edgecolor": "none", "pad": 0.5, "alpha": 0.85},
         )
@@ -681,8 +679,8 @@ def figure4(nodes, edges, metrics, lodo):
         spine.set_visible(False)
     network_axis.plot([], [], color=CORAL, lw=1, label="higher under specialized")
     network_axis.plot([], [], color=SKY, lw=1, ls="--", label="lower under specialized")
-    network_axis.legend(frameon=False, loc="lower left", ncol=2, fontsize=5,
-                        handlelength=1.5, columnspacing=0.8)
+    network_axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.14),
+                        ncol=2, fontsize=5, handlelength=1.5, columnspacing=0.8)
 
     matrix = edges.pivot(index="source_macro", columns="target_macro",
                          values="standardized_share_difference").sort_index().sort_index(axis=1)
@@ -700,7 +698,7 @@ def figure4(nodes, edges, metrics, lodo):
     heat_axis.set_xticklabels([f"D{x:02d}" for x in range(0, 32, 4)], rotation=45, ha="right")
     heat_axis.set_yticklabels([f"D{x:02d}" for x in range(0, 32, 4)])
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
-    colorbar.set_label("Specialized minus broad standardized share")
+    colorbar.set_label("Destination-share difference")
     colorbar.ax.tick_params(labelsize=5)
 
     ordered_metrics = ["directed_modularity", "audience_participation", "semantic_span"]
@@ -712,7 +710,6 @@ def figure4(nodes, edges, metrics, lodo):
                         fontsize=8, fontweight="bold")
     metric_axes[1].text(0.5, 1.26, "Three network summaries", transform=metric_axes[1].transAxes,
                         ha="center", fontsize=7)
-    metric_axes[1].set_xlabel("Specialized minus broad", labelpad=2)
 
     for axis, metric, title in zip(lodo_axes, ordered_metrics, short):
         values = lodo[lodo.metric.eq(metric)].sort_values("omitted_source_macro")
@@ -721,10 +718,11 @@ def figure4(nodes, edges, metrics, lodo):
                       fontsize=8, fontweight="bold")
     lodo_axes[1].text(0.5, 1.26, "Direction after omitting each source domain",
                       transform=lodo_axes[1].transAxes, ha="center", fontsize=7)
-    lodo_axes[1].set_xlabel("Specialized minus broad", labelpad=2)
     panel_label(network_axis, "a", x=-0.08)
     panel_label(heat_axis, "b", x=-0.13)
-    fig.text(0.50, 0.025,
+    fig.text(0.285, 0.075, "Specialized − broad (×100)", ha="center", fontsize=6)
+    fig.text(0.735, 0.075, "Specialized − broad (×100)", ha="center", fontsize=6)
+    fig.text(0.50, 0.018,
              "Network support and propensity weights were regenerated by the deterministic downstream refit.",
              ha="center", fontsize=5, color=MID_GRAY)
     return save(fig, "figure4_network")
@@ -792,7 +790,7 @@ def extended_data1(frame):
     axis.axhline(80, color=INK, lw=0.6, ls="--")
     axis.set_xticks(x, ["Focal", "Citing", "References"])
     axis.set(ylabel="Classified or in distribution (%)", title="Text coverage was high in both arms")
-    axis.legend(frameon=False)
+    axis.legend(frameon=False, loc="lower left")
 
     axis = axes[1, 0]
     dates = frame[frame.panel.eq("c")]
@@ -876,8 +874,8 @@ def extended_data2(bins, balance, candidates):
         frame = bins[bins.arm.eq(arm)]
         axis.step((frame.bin_left + frame.bin_right) / 2, frame.density,
                   where="mid", color=color, label=arm)
-    axis.set(xlabel="Deterministic-refit propensity within support", ylabel="Density",
-             title="The two arms overlapped within the retained population")
+    axis.set(xlabel="Propensity within support", ylabel="Density",
+             title="Propensity overlap")
     axis.legend(frameon=False)
 
     axis = axes[0, 1]
@@ -889,7 +887,7 @@ def extended_data2(bins, balance, candidates):
                   f"ESS {min(row.ess_broad, row.ess_specialized) / 1e3:.0f}k",
                   va="center", fontsize=5.5)
     axis.set_yticks(y, names)
-    axis.set(xlabel="Retained (%)", title="Support and effective sample size")
+    axis.set(xlabel="Retained (%)", title="Support and effective size")
 
     axis = axes[1, 0]
     selected = balance[(balance.candidate == "primary_leaves_63") &
@@ -907,9 +905,21 @@ def extended_data2(bins, balance, candidates):
         axis.plot([abs(raw.smd.iloc[index]), abs(weighted.smd.iloc[index])], [y[index], y[index]],
                   color=LIGHT_GRAY, lw=0.7, zorder=0)
     axis.axvline(0.10, color=INK, lw=0.6, ls="--")
-    axis.set_yticks(y, [str(name)[:35] for name in top])
+    balance_labels = {
+        "lead_prior_venue_specialization": "Lead prior venue scope",
+        "log1p_prior_prestige": "Prior journal prestige",
+        "log1p_institution_mean_prior_citations": "Institution mean citations",
+        "log1p_institution_mean_prior_works": "Institution mean papers",
+        "log1p_institution_max_prior_citations": "Institution max citations",
+        "log1p_institution_max_prior_works": "Institution max papers",
+        "lead_country=__MISSING__": "Lead-author country missing",
+        "choice_prevalence": "Choice-set treated share",
+        "lead_prior_venue_specialization__missing": "Lead prior scope missing",
+        "lead_prior_venue_missing": "Lead prior venue missing",
+    }
+    axis.set_yticks(y, [balance_labels.get(str(name), str(name)) for name in top])
     axis.set(xlabel="Absolute standardized mean difference",
-             title="Residual balance is reported, not dichotomized")
+             title="Largest residual imbalances")
     axis.legend(frameon=False)
 
     axis = axes[1, 1]
@@ -920,8 +930,11 @@ def extended_data2(bins, balance, candidates):
         axis.scatter(row.weight_p95, yi, color=TEAL, marker="s", s=13)
         axis.scatter(row.weight_p99, yi, color=CORAL, marker="^", s=15)
     axis.set_xscale("log")
+    axis.set_xlim(0.9, 22)
+    axis.set_xticks([1, 2, 5, 10, 20], ["1", "2", "5", "10", "20"])
+    axis.xaxis.set_minor_locator(mpl.ticker.NullLocator())
     axis.set_yticks(y, names)
-    axis.set(xlabel="Inverse-probability weight", title="Weight tails remained bounded by design")
+    axis.set(xlabel="Inverse-probability weight", title="Weight distribution")
     axis.legend(handles=[
         plt.Line2D([], [], marker="o", color="none", markerfacecolor=SKY,
                    markeredgecolor=SKY, label="50th"),
@@ -929,7 +942,7 @@ def extended_data2(bins, balance, candidates):
                    markeredgecolor=TEAL, label="95th"),
         plt.Line2D([], [], marker="^", color="none", markerfacecolor=CORAL,
                    markeredgecolor=CORAL, label="99th"),
-    ], frameon=False, ncol=3, loc="lower right")
+    ], frameon=False, ncol=3, loc="upper right")
     for label, axis in zip("abcd", axes.ravel()):
         panel_label(axis, label, x=-0.12)
     return save(fig, "extended_data_figure2_diagnostics")
@@ -971,7 +984,7 @@ def extended_data3(estimates, analyze_run, downstream_run):
     axes[0].text(percent_ratio([deterministic])[0], -0.48, "deterministic refit\n(point only)",
                  ha="center", fontsize=5.5)
     axes[0].set_ylim(-0.72, 0.45)
-    axes[0].set(xlabel="Ratio change (%)", title="Deterministic refit (point estimate)")
+    axes[0].set(xlabel="Ratio change (%)", title="Deterministic refit")
 
     forest(axes[1], pd.DataFrame([primary, winsor]), ["Raw counts", "99.9% winsorized"],
            colors=[CORAL, NAVY], transform=percent_ratio)
@@ -987,10 +1000,10 @@ def extended_data3(estimates, analyze_run, downstream_run):
         axis.scatter(percent_ratio([row.estimate]), [y[index]], color=INK, s=10, zorder=3)
     axis.axvline(0, color=INK, lw=0.6)
     axis.set_yticks(y, ["Raw counts", "Winsorized"])
-    axis.set(xlabel="Ratio change (%)", title="Analytic and shared-bootstrap intervals agreed")
+    axis.set(xlabel="Ratio change (%)", title="Interval estimators")
     axis.legend(handles=[plt.Line2D([], [], color=CORAL, lw=1.4, label="Analytic"),
                          plt.Line2D([], [], color=NAVY, lw=1.4, label="Bootstrap")],
-                frameon=False, loc="lower right")
+                frameon=False, loc="center right")
 
     axis = axes[3]
     axis.axis("off")
@@ -1000,15 +1013,15 @@ def extended_data3(estimates, analyze_run, downstream_run):
     axis.scatter([0.25], [0.62], s=280, color=PALE_GRAY, edgecolor=MID_GRAY,
                  transform=axis.transAxes)
     axis.scatter([0.25], [0.62], s=26, color=CORAL, transform=axis.transAxes)
-    axis.text(0.25, 0.33, f"top 0.1% of papers\ncarried {share:.2f}% of citations",
-              ha="center", transform=axis.transAxes)
+    axis.text(0.25, 0.30, f"top 0.1%\nof papers carried\n{share:.2f}% of citations",
+              ha="center", transform=axis.transAxes, fontsize=6)
     axis.text(0.73, 0.68, f"nearby cap\n{near_cap:.0f}", ha="center",
               transform=axis.transAxes,
               bbox={"boxstyle": "round,pad=0.3", "facecolor": WHITE, "edgecolor": SKY})
     axis.text(0.73, 0.39, f"distant cap\n{far_cap:.0f}", ha="center",
               transform=axis.transAxes,
               bbox={"boxstyle": "round,pad=0.3", "facecolor": WHITE, "edgecolor": CORAL})
-    axis.set_title("Tail diagnostics were reported directly")
+    axis.set_title("Citation-tail diagnostics")
     for label, axis in zip("abcd", axes):
         panel_label(axis, label)
     return save(fig, "extended_data_figure3_sensitivities")
@@ -1041,15 +1054,22 @@ def extended_data4(subgroups, labels):
     breadth = subgroup_frame(subgroups, "paper_venue_fit")
     author_breadth = subgroup_frame(subgroups, "author_audience_breadth")
     author_works = subgroup_frame(subgroups, "author_publication_experience")
-    fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 6.25), constrained_layout=True,
+    fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 6.75), constrained_layout=True,
                              gridspec_kw={"height_ratios": [1.55, 1]})
 
-    domain_labels = [f"D{int(row.qwen_macro):02d}  "
-                     f"{str(row.representative_journals).split(';')[0][:22]}"
-                     for row in domains.itertuples()]
+    domain_labels = [f"D{int(row.qwen_macro):02d}" for row in domains.itertuples()]
     forest(axes[0, 0], domains, domain_labels, colors=[NAVY] * 32, transform=percent_ratio)
+    axes[0, 0].set_xlim(-55, 105)
+    d18_position = next(index for index, row in enumerate(domains.itertuples())
+                        if int(row.qwen_macro) == 18)
+    d18_y = len(domains) - 1 - d18_position
+    d18_high = percent_ratio([domains.iloc[d18_position].ci_high])[0]
+    axes[0, 0].scatter([103], [d18_y], marker=">", s=15, color=NAVY, clip_on=False)
+    axes[0, 0].annotate(f"upper CI {d18_high:.0f}%", (100, d18_y),
+                        xytext=(58, d18_y + 1.1), fontsize=5,
+                        arrowprops={"arrowstyle": "-", "color": MID_GRAY, "lw": 0.35})
     axes[0, 0].set(xlabel="Ratio change (%)",
-                   title="All 32 venue-free semantic macrodomains")
+                   title="Semantic macrodomains")
     axes[0, 0].tick_params(axis="y", labelsize=5)
 
     axis = axes[0, 1]
@@ -1061,12 +1081,12 @@ def extended_data4(subgroups, labels):
                   color=CORAL, capsize=1.5, lw=0.8, ms=3)
     axis.set_xticks(x)
     axis.set(xlabel="Publication cohort", ylabel="Ratio change (%)",
-             title="All six publication cohorts")
+             title="Publication cohorts")
 
     forest(axes[1, 0], breadth, ["Q1 narrow refs", "Q2", "Q3", "Q4 broad refs"],
            colors=[NAVY] * 4, transform=percent_ratio)
     axes[1, 0].set(xlabel="Ratio change (%)",
-                   title="Paper reference breadth, with no subgroup selection")
+                   title="Paper reference breadth")
 
     axis = axes[1, 1]
     for frame, label, color, marker in (
