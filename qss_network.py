@@ -265,7 +265,7 @@ def score_diagnostics(con, journal_n, multipliers):
           CASE WHEN s.treatment=0 THEN s.psi_far_1
                ELSE (a.far-s.propensity*s.psi_far_1)/(1-s.propensity) END AS m_far_1
         FROM read_parquet(?) s JOIN read_parquet(?) a USING (id)
-        JOIN network_journals j USING (journal_id)
+        JOIN network_journals j ON j.journal_id=s.journal_id
       ), stacked AS (
         SELECT *,0 AS subset FROM scored
         UNION ALL SELECT *,1 FROM scored WHERE NOT january_1
