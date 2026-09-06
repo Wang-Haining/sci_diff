@@ -1243,6 +1243,7 @@ def main():
     source_subgroups = subgroups.copy()
     domain_rows = source_subgroups.test.eq("semantic_domain")
     source_subgroups["research_domain"] = "Not applicable"
+    source_subgroups.loc[domain_rows, "modifier"] = "text_defined_research_domain"
     source_subgroups.loc[domain_rows, "research_domain"] = (
         pd.to_numeric(source_subgroups.loc[domain_rows, "level"]).map(domain_names)
     )
