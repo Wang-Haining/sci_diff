@@ -115,8 +115,8 @@ def panel_label(axis, label, x=-0.16, y=1.05):
               fontweight="bold", va="bottom", ha="left", clip_on=False)
 
 
-def node_labels(axis, nodes, fontsize=5):
-    for row in nodes.itertuples():
+def node_labels(axis, nodes, top_n, fontsize=5):
+    for row in nodes.nlargest(top_n, "source_share").itertuples():
         axis.annotate(f"{int(row.qwen_macro):02d}", (row.mds_x, row.mds_y),
                       xytext=NODE_LABEL_OFFSETS.get(int(row.qwen_macro), (0, 0)),
                       textcoords="offset points", ha="center", va="center",
@@ -458,7 +458,7 @@ def figure1(con, nodes, exposure_run):
     axis = axes[3]
     size = 8 + 140 * nodes.source_share.to_numpy() / nodes.source_share.max()
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE, edgecolor=NAVY, lw=0.55)
-    node_labels(axis, nodes, fontsize=4.5)
+    node_labels(axis, nodes, top_n=8, fontsize=4.5)
     axis.set(xticks=[], yticks=[], title="Venue-free destination map")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
@@ -667,19 +667,7 @@ def figure4(nodes, edges, metrics, lodo):
     size = 13 + 215 * nodes.source_share.to_numpy() / nodes.source_share.max()
     network_axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
                          edgecolor=INK, linewidth=0.55, zorder=3)
-    node_labels(network_axis, nodes, fontsize=4.5)
-    centre_x, centre_y = nodes.mds_x.median(), nodes.mds_y.median()
-    for row in nodes.nlargest(4, "source_share").itertuples():
-        journal = str(row.representative_journals).split(";")[0][:18]
-        dx = -7 if row.mds_x >= centre_x else 7
-        dy = -7 if row.mds_y >= centre_y else 7
-        network_axis.annotate(
-            f"D{int(row.qwen_macro):02d}  {journal}", (row.mds_x, row.mds_y),
-            xytext=(dx, dy), textcoords="offset points", fontsize=5,
-            ha="left" if dx > 0 else "right",
-            arrowprops={"arrowstyle": "-", "color": MID_GRAY, "lw": 0.35},
-            bbox={"facecolor": WHITE, "edgecolor": "none", "pad": 0.5, "alpha": 0.85},
-        )
+    node_labels(network_axis, nodes, top_n=12, fontsize=4.5)
     network_axis.set(xticks=[], yticks=[],
                      title="Citation-flow differences")
     network_axis.set_aspect("equal", adjustable="datalim")
