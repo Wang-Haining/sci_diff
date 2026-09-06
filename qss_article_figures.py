@@ -74,8 +74,7 @@ SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
     "SourceData_Figure3_nodes.csv", "SourceData_Figure3_edges.csv",
     "SourceData_Figure3_metrics.csv", "SourceData_Figure3_lodo.csv",
-    "SourceData_Figure4_estimates.csv", "SourceData_Figure4_tests.csv",
-    "SourceData_Figure4_same_author.csv",
+    "SourceData_Figure4_estimates.csv", "SourceData_Figure4_same_author.csv",
     "SourceData_ED1_cohort_coverage.csv", "SourceData_ED2_balance.csv",
     "SourceData_ED2_propensity_candidates.csv", "SourceData_ED2_propensity_bins.csv",
     "SourceData_ED3_sensitivities.csv", "SourceData_ED4_subgroups.csv",
@@ -539,6 +538,12 @@ def figure2(estimates):
     labels = ["All external", "Nearby", "Intermediate", "Distant"]
     routing = estimate_row(estimates, "primary", "far_to_near_routing")
     any_far = estimate_row(estimates, "primary", "any_far")
+    near = estimate_row(estimates, "primary", "near")
+    distant = estimate_row(estimates, "primary", "far")
+    share_broad = 100 * distant.mean_broad / (near.mean_broad + distant.mean_broad)
+    share_specialized = 100 * distant.mean_specialized / (
+        near.mean_specialized + distant.mean_specialized
+    )
     source = pd.concat([absolute, pd.DataFrame([routing, any_far])], ignore_index=True)
 
     fig, axes = plt.subplots(1, 4, figsize=(MAIN_WIDTH, 2.45), constrained_layout=True,
@@ -556,6 +561,12 @@ def figure2(estimates):
 
     forest(axes[1], absolute, labels, colors=[MID_GRAY, MID_GRAY, GOLD, CORAL])
     axes[1].set(xlabel="Specialized minus broad", title="Specialized − broad")
+    axes[1].text(
+        0.03, 0.03,
+        f"Distant: {distant.estimate:.2f} per paper\n"
+        f"95% CI [{distant.ci_low:.2f}, {distant.ci_high:.2f}]",
+        transform=axes[1].transAxes, fontsize=5.5,
+    )
 
     effect, low, high = forest(
         axes[2], pd.DataFrame([routing]), ["Distant / nearby"], colors=[CORAL],
@@ -563,7 +574,8 @@ def figure2(estimates):
     )
     axes[2].set(xlabel="Ratio change (%)", title="Distant / nearby ratio")
     axes[2].text(0.04, 0.08,
-                 f"broad {routing.mean_broad:.2f}\nspecialized {routing.mean_specialized:.2f}",
+                 f"broad {routing.mean_broad:.2f}\nspecialized {routing.mean_specialized:.2f}\n"
+                 f"distant share {share_broad:.1f}% → {share_specialized:.1f}%",
                  transform=axes[2].transAxes, fontsize=6)
     axes[2].annotate(f"{effect[0]:.1f}%\n[{low[0]:.1f}, {high[0]:.1f}]",
                      (effect[0], 0), xytext=(4, 12), textcoords="offset points", fontsize=6)
@@ -588,7 +600,7 @@ def subgroup_frame(subgroups, test):
     return frame
 
 
-def normalized_figure3_source(estimates, subgroups):
+def normalized_figure3_source(estimates):
     rows = []
     for analysis, outcome, label in (
         ("primary", "far_to_near_routing", "Later citation distribution"),
@@ -600,58 +612,34 @@ def normalized_figure3_source(estimates, subgroups):
                      "estimate": row.estimate, "ci_low": row.ci_low, "ci_high": row.ci_high,
                      "mean_broad": row.mean_broad, "mean_specialized": row.mean_specialized,
                      "n": int(row.n), "journals": int(row.journals)})
-    for test in ("paper_venue_fit",):
-        for row in subgroup_frame(subgroups, test).itertuples():
-            rows.append({"evidence": "subgroup", "test": test,
-                         "level": str(normalize_level(row.level)), "estimate": row.estimate,
-                         "ci_low": row.ci_low, "ci_high": row.ci_high,
-                         "mean_broad": row.far_near_broad,
-                         "mean_specialized": row.far_near_specialized,
-                         "n": int(row.n), "journals": int(row.journals)})
     return pd.DataFrame(rows)
 
 
-def relevant_figure3_tests(tests):
-    names = ["paper_venue_fit_q4_minus_q1", "paper_venue_fit_continuous"]
-    frame = tests.set_index("test").loc[names].reset_index()
-    columns = ["test", "modifier", "status", "estimate", "se", "ci_low", "ci_high",
-               "bootstrap_ci_low", "bootstrap_ci_high", "p_value"]
-    require_finite(frame, "Figure 3 interaction tests", columns[3:])
-    return frame[columns]
-
-
-def figure3(estimates, subgroups, tests, same_author):
+def figure3(estimates, same_author):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     reference = estimate_row(estimates, "primary", "reference_routing")
     adjusted = estimate_row(estimates, "reference_adjusted", "far_to_near_routing")
-    breadth = subgroup_frame(subgroups, "paper_venue_fit")
-    source = normalized_figure3_source(estimates, subgroups)
+    source = normalized_figure3_source(estimates)
 
-    fig, axes = plt.subplots(1, 4, figsize=(MAIN_WIDTH, 2.75), constrained_layout=True,
-                             gridspec_kw={"width_ratios": [1.0, 1.0, 1.1, 1.28]})
-    forest(axes[0], pd.DataFrame([primary, reference]),
-           ["Later citations", "Final references"], colors=[CORAL, TEAL],
+    fig, axes = plt.subplots(1, 2, figsize=(MAIN_WIDTH, 2.65), constrained_layout=True,
+                             gridspec_kw={"width_ratios": [1.22, 1.0]})
+    forest(axes[0], pd.DataFrame([primary, reference, adjusted]),
+           ["Later citations", "Final references", "After reference adjustment"],
+           colors=[CORAL, TEAL, NAVY],
            transform=percent_ratio)
-    axes[0].set(xlabel="Distant / nearby change (%)", title="Published references")
-
-    forest(axes[1], pd.DataFrame([primary, adjusted]),
-           ["Primary", "+ reference distribution"], colors=[CORAL, TEAL],
-           transform=percent_ratio)
-    axes[1].set(xlabel="Distant / nearby change (%)", title="Reference-inclusive model")
-
-    forest(axes[2], breadth, ["Q1 narrow refs", "Q2", "Q3", "Q4 broad refs"],
-           colors=[NAVY] * 4, transform=percent_ratio)
-    axes[2].set(xlabel="Distant / nearby change (%)", title="Reference breadth")
+    axes[0].set(xlabel="Distant / nearby ratio change (%)",
+                title="Audience alignment and adjustment")
 
     author = same_author.rename(columns={"theta": "estimate",
                                          "bootstrap_ci_low": "ci_low",
                                          "bootstrap_ci_high": "ci_high"})
     author = author.set_index("author_role").loc[["first", "last"]].reset_index()
-    forest(axes[3], author, ["Same first author", "Same last author"],
+    forest(axes[1], author, ["Same first author", "Same last author"],
            colors=[TEAL, NAVY], markers=["o", "s"], transform=percent_ratio)
-    axes[3].set(xlabel="Ratio change (%)", title="Within-author")
-    for label, axis in zip("abcd", axes):
-        panel_label(axis, label, x=-0.28, y=1.07)
+    axes[1].set(xlabel="Distant / nearby ratio change (%)",
+                title="Within-author comparisons")
+    for label, axis in zip("ab", axes):
+        panel_label(axis, label, x=-0.20, y=1.07)
     return source, save(fig, "figure4_boundaries_modifiers")
 
 
@@ -969,6 +957,9 @@ def extended_data2(bins, balance, candidates):
         "choice_prevalence": "Choice-set treated share",
         "lead_prior_venue_specialization__missing": "Lead prior scope missing",
         "lead_prior_venue_missing": "Lead prior venue missing",
+        "qpc07": "Paper-content component 7",
+        "qpc14": "Paper-content component 14",
+        "semantic_cluster=479": "Text-defined content-group indicator",
     }
     axis.set_yticks(y, [balance_labels.get(str(name), str(name)) for name in top])
     axis.set(xlabel="Absolute standardized mean difference",
@@ -1174,6 +1165,7 @@ def main():
         "SourceData_Figure3_estimates.csv", "SourceData_Figure3_tests.csv",
         "SourceData_Figure4_nodes.csv", "SourceData_Figure4_edges.csv",
         "SourceData_Figure4_metrics.csv", "SourceData_Figure4_lodo.csv",
+        "SourceData_Figure4_tests.csv",
     ]
     for name in SOURCE_FILES + stale_sources + ["source_data_manifest.csv"]:
         path = SOURCE_DATA / name
@@ -1213,14 +1205,12 @@ def main():
     paths += new_paths
     write_source("SourceData_Figure2.csv", figure2_source, "Figure 2", "a-d",
                  "results/qss_v3/dirty_estimates.csv")
-    figure3_source, new_paths = figure3(estimates, subgroups, tests, same_author)
+    figure3_source, new_paths = figure3(estimates, same_author)
     paths += new_paths
-    write_source("SourceData_Figure4_estimates.csv", figure3_source, "Figure 4", "a-d",
-                 "results/qss_v3/dirty_estimates.csv;results/qss_v3/subgroup_estimates.csv")
-    write_source("SourceData_Figure4_tests.csv", relevant_figure3_tests(tests),
-                 "Figure 4", "c", "results/qss_v3/subgroup_tests.csv")
+    write_source("SourceData_Figure4_estimates.csv", figure3_source, "Figure 4", "a",
+                 "results/qss_v3/dirty_estimates.csv")
     write_source("SourceData_Figure4_same_author.csv", same_author,
-                 "Figure 4", "d", "results/qss_v3/same_author_sensitivity.csv")
+                 "Figure 4", "b", "results/qss_v3/same_author_sensitivity.csv")
     paths += figure4(nodes, edges, metrics, lodo)
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
@@ -1302,8 +1292,8 @@ def main():
                  "results/qss_v3/macro_labels.csv")
 
     manifest = pd.DataFrame(source_records).sort_values(["figure/panel", "source_file"])
-    if len(manifest) != 17 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 17:
-        raise ValueError(f"expected 17 hashed source-data files, got {len(manifest)}")
+    if len(manifest) != 16 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 16:
+        raise ValueError(f"expected 16 hashed source-data files, got {len(manifest)}")
     manifest.to_csv(SOURCE_DATA / "source_data_manifest.csv", index=False)
     if len(paths) != 16 or len(list(FIGURES.glob("*.pdf"))) != 8 \
             or len(list(FIGURES.glob("*.png"))) != 8:
