@@ -797,8 +797,13 @@ def ed1_data(v2_dirty, v3_prepare, v3_analyze, network_run):
             {"panel": "c", "arm": arm, "measure": "Citing paper dated 1 January",
              "value": citing_date[code], "unit": "proportion"},
         ]
+    labels = {
+        "excluded_external": "Same journal/author",
+        "external_unclassified": "Area unavailable",
+        "eligible": "Included",
+    }
     for measure in ("excluded_external", "external_unclassified", "eligible"):
-        rows.append({"panel": "d", "arm": "all", "measure": measure.replace("_", " ").title(),
+        rows.append({"panel": "d", "arm": "all", "measure": labels[measure],
                      "value": network[measure], "unit": "citation edges"})
     frame = pd.DataFrame(rows)
     if int(frame.query("panel == 'd'").value.sum()) != int(network["support_edges"]):
@@ -850,7 +855,7 @@ def extended_data1(frame):
         axis.barh([0], [row.value / 1e6], left=left, color=color, label=row.measure)
         left += row.value / 1e6
     axis.set_yticks([])
-    axis.set(xlabel="Citation edges (millions)", title="Network-edge exclusions reconcile exactly")
+    axis.set(xlabel="Citation links (millions)", title="Every citation link was accounted for")
     axis.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3)
     for label, axis in zip("abcd", axes.ravel()):
         panel_label(axis, label, x=-0.12)
@@ -1010,7 +1015,7 @@ def sensitivity_data(estimates, analyze_run, downstream_run, same_journal, dynam
         for statistic in ("estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"):
             add("b" if item != "Primary" else "a", item, statistic, row[statistic],
                 "results/qss_v3/dirty_estimates.csv")
-    add("a", "Primary-specification rerun", "estimate", downstream_run["extra"]["reproduced_theta"],
+    add("a", "Separate computational rerun", "estimate", downstream_run["extra"]["reproduced_theta"],
         "artifacts/qss_v3/run_downstream.json")
     add("d", "Top 0.1% papers", "flow_share", analyze_run["extra"]["top_0_1_percent_flow_share"],
         "artifacts/qss_v3/run_analyze.json")
@@ -1047,19 +1052,19 @@ def extended_data3(estimates, analyze_run, downstream_run, same_journal, dynamic
     forest(axes[0], pd.DataFrame([primary]), ["Primary"], colors=[CORAL], transform=percent_ratio)
     axes[0].scatter(percent_ratio([deterministic]), [-0.28], marker="D", facecolor=WHITE,
                     edgecolor=NAVY, s=22, zorder=3)
-    axes[0].text(percent_ratio([deterministic])[0], -0.48, "rerun\n(point only)",
+    axes[0].text(percent_ratio([deterministic])[0], -0.48, "separate rerun\n(point only)",
                  ha="center", fontsize=5.5)
     axes[0].set_ylim(-0.72, 0.45)
-    axes[0].set(xlabel="Ratio change (%)", title="Primary-specification rerun")
+    axes[0].set(xlabel="Ratio change (%)", title="Separate computational rerun")
 
     forest(axes[1], pd.DataFrame([primary, winsor]), ["Raw counts", "99.9% winsorized"],
            colors=[CORAL, NAVY], transform=percent_ratio)
     axes[1].set(xlabel="Ratio change (%)", title="99.9% winsorization")
 
     definitions = same_journal.set_index("estimand").loc[["external", "inclusive"]].reset_index()
-    forest(axes[2], definitions, ["External only", "+ same-journal"],
+    forest(axes[2], definitions, ["Primary exclusions", "+ same-journal"],
            colors=[NAVY, CORAL], transform=percent_ratio)
-    axes[2].set(xlabel="Ratio change (%)", title="Same-journal definition (IPW)")
+    axes[2].set(xlabel="Ratio change (%)", title="Adding same-journal citations (IPW)")
 
     any_far = estimate_row(estimates, "primary", "any_far")
     ipw_any = dynamics[(dynamics.horizon_months == 60) & dynamics.outcome.eq("any_distant")]
