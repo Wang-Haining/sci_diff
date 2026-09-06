@@ -1,0 +1,133 @@
+{
+  "design": "qss_v3",
+  "stage": "network",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "cd24f38b5c48424462de86ef4c7ca6d8f158468d",
+  "timestamp_utc": "2026-09-06T03:27:40.441425+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0"
+  },
+  "counts": {
+    "support": 3827491,
+    "journals": 20215,
+    "raw_citation_edges": 74432171,
+    "support_citation_edges": 31853837,
+    "eligible_edges": 23609934,
+    "nodes": 32,
+    "edge_cells": 1024,
+    "bootstrap_draws": 500,
+    "leave_one_domain_out_rows": 96
+  },
+  "extra": {
+    "model_commit": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "window": "[publication_date, publication_date + 60 months)",
+    "edge_direction": "focal/cited macrodomain to citing-paper macrodomain",
+    "support_source": "routing_scores.parquet from deterministic downstream refit",
+    "standardization": "IPW destination shares within source macrodomain, common empirical source distribution",
+    "semantic_span": "cosine distance between frozen Qwen3 leaf centroids",
+    "layout": "classical MDS of 1-cosine macro-centroid distances; standard MDS squares dissimilarities in the double-centering step",
+    "display_edges": "off-diagonal edges selected without arm labels to reach 50% of pooled cross-domain standardized mass",
+    "bootstrap": "journal-cluster Poisson(1), shared across arms and metrics",
+    "configuration_null": "directed source/destination independence; semantic-span null preserves standardized leaf margins",
+    "exclusions": {
+      "support_edges": 31853837,
+      "missing_citing_journal": 0,
+      "same_journal": 2684225,
+      "shared_author": 5517180,
+      "excluded_external": 7406045,
+      "external": 24447792,
+      "external_unclassified": 837858,
+      "eligible": 23609934
+    },
+    "metrics_concordant": 3,
+    "metrics_total": 3,
+    "outputs": {
+      "nodes": {
+        "path": "results/qss_v3/network_nodes.csv",
+        "rows": 32,
+        "columns": [
+          "qwen_macro",
+          "mds_x",
+          "mds_y",
+          "source_share",
+          "focal_broad",
+          "focal_specialized",
+          "self_retention_broad",
+          "self_retention_specialized",
+          "self_retention_difference",
+          "representative_journals"
+        ],
+        "bytes": 7688
+      },
+      "edges": {
+        "path": "results/qss_v3/network_edges.csv",
+        "rows": 1024,
+        "columns": [
+          "source_macro",
+          "target_macro",
+          "raw_edges_broad",
+          "raw_edges_specialized",
+          "ipw_edges_broad",
+          "ipw_edges_specialized",
+          "rate_broad",
+          "rate_specialized",
+          "row_share_broad",
+          "row_share_specialized",
+          "row_share_difference",
+          "standardized_share_broad",
+          "standardized_share_specialized",
+          "standardized_share_difference",
+          "pooled_standardized_share",
+          "plot_edge"
+        ],
+        "bytes": 259077
+      },
+      "metrics": {
+        "path": "results/qss_v3/network_metrics.csv",
+        "rows": 3,
+        "columns": [
+          "metric",
+          "expected_specialized_direction",
+          "broad",
+          "specialized",
+          "contrast_specialized_minus_broad",
+          "se",
+          "ci_low",
+          "ci_high",
+          "bootstrap_ci_low",
+          "bootstrap_ci_high",
+          "null_broad",
+          "null_specialized",
+          "direction_concordant"
+        ],
+        "bytes": 865
+      },
+      "lodo": {
+        "path": "results/qss_v3/network_leave_one_domain_out.csv",
+        "rows": 96,
+        "columns": [
+          "omitted_source_macro",
+          "metric",
+          "broad",
+          "specialized",
+          "contrast_specialized_minus_broad",
+          "direction_concordant"
+        ],
+        "bytes": 8387
+      }
+    },
+    "output_bytes": 276017,
+    "persistent_bytes": 146984372606,
+    "group_free_bytes": 2293563916288
+  }
+}
