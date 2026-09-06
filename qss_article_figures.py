@@ -9,7 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.patches import FancyArrowPatch
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 from qss_common import SEED
 from qss_v3_common import (
@@ -27,6 +27,10 @@ SOURCE_DATA = FIGURES / "source_data"
 SCOPE = V2_WORK / "journal_year_scope.parquet"
 SCORES = V3_WORK / "routing_scores.parquet"
 V2_ARTIFACTS = ARTIFACTS.parent / "qss_v2"
+NEWS_ESTIMATES = RESULTS / "news_estimates.csv"
+NEWS_GATES = RESULTS / "news_gates.csv"
+CASE_SELECTION = RESULTS / "case_selection.csv"
+CORRIDORS = RESULTS / "journal_corridors.csv"
 
 CORAL = "#E64B35"
 SKY = "#4DBBD5"
@@ -73,12 +77,13 @@ NODE_LABEL_OFFSETS = {
 SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
     "SourceData_Figure3_nodes.csv", "SourceData_Figure3_edges.csv",
-    "SourceData_Figure3_metrics.csv", "SourceData_Figure3_lodo.csv",
+    "SourceData_Figure3_metrics.csv", "SourceData_Figure3_web.csv",
     "SourceData_Figure4_estimates.csv", "SourceData_Figure4_same_author.csv",
     "SourceData_ED1_cohort_coverage.csv", "SourceData_ED2_balance.csv",
     "SourceData_ED2_propensity_candidates.csv", "SourceData_ED2_propensity_bins.csv",
-    "SourceData_ED3_sensitivities.csv", "SourceData_ED4_subgroups.csv",
-    "SourceData_ED4_tests.csv", "SourceData_ED4_domain_labels.csv",
+    "SourceData_ED3_network_edges.csv", "SourceData_ED3_lodo.csv",
+    "SourceData_ED3_sensitivities.csv", "SourceData_ED4_corridors.csv",
+    "SourceData_ED4_nodes.csv",
 ]
 
 
@@ -263,6 +268,67 @@ def validate_network(nodes, edges, metrics, lodo):
         raise ValueError("standardized network differences do not reconcile")
 
 
+def validate_news(news, gates):
+    require_finite(
+        news, "tracked-web estimates",
+        ["mean_broad", "mean_narrower", "estimate", "se", "ci_low", "ci_high",
+         "bootstrap_ci_low", "bootstrap_ci_high", "n", "journals"],
+    )
+    promoted = gates.loc[gates.gate.eq("promote_to_main_text"), "passed"]
+    if len(promoted) != 1 or not bool(bool_column(promoted, "news promotion gate").iloc[0]):
+        raise ValueError("Figure 3 requires news_gates promote_to_main_text=true")
+    overall = news[
+        news.period.astype(str).eq("all")
+        & news.scale.eq("absolute_difference")
+        & news.outcome.isin(["any_web_5cy", "web_pages_5cy"])
+    ].copy()
+    if len(overall) != 2 or set(overall.outcome) != {"any_web_5cy", "web_pages_5cy"}:
+        raise ValueError(f"expected two promoted overall tracked-web estimates, got {len(overall)}")
+    if (overall.ci_low > overall.estimate).any() or (overall.ci_high < overall.estimate).any():
+        raise ValueError("tracked-web analytic confidence interval does not contain estimate")
+    if (overall[["mean_broad", "mean_narrower"]] < 0).any().any():
+        raise ValueError("expected nonnegative tracked-web marginal means")
+    return overall.set_index("outcome").loc[["any_web_5cy", "web_pages_5cy"]].reset_index()
+
+
+def validate_corridors(selection, corridors):
+    required = [
+        "case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
+        "broad_name", "narrow_name", "broad_scope", "narrow_scope", "broad_n",
+        "narrow_n", "shared_n", "overlap", "routing_change_percent",
+        "routing_ci_low_percent", "routing_ci_high_percent", "subgroup_n", "journals",
+    ]
+    require_finite(corridors, "journal corridors", [
+        "case_rank", "qwen_macro", "broad_scope", "narrow_scope", "broad_n", "narrow_n",
+        "shared_n", "overlap", "routing_change_percent", "routing_ci_low_percent",
+        "routing_ci_high_percent", "subgroup_n", "journals",
+    ])
+    require_columns(corridors, "journal corridors", required)
+    require_columns(selection, "case selection", required[:13])
+    if len(corridors) != 4 or corridors.qwen_macro.nunique() != 4 \
+            or set(corridors.case_rank.astype(int)) != {1, 2, 3, 4}:
+        raise ValueError(f"expected four ranked journal corridors, got rows={len(corridors)}")
+    pre_outcome = required[:13]
+    selected = selection[pre_outcome].sort_values("case_rank").reset_index(drop=True)
+    joined = corridors[pre_outcome].sort_values("case_rank").reset_index(drop=True)
+    text_columns = ["display_label", "broad_id", "narrow_id", "broad_name", "narrow_name"]
+    numeric_columns = [column for column in pre_outcome if column not in text_columns]
+    if not selected[text_columns].astype(str).equals(joined[text_columns].astype(str)) \
+            or not np.allclose(selected[numeric_columns].to_numpy(dtype=float),
+                               joined[numeric_columns].to_numpy(dtype=float),
+                               rtol=0, atol=1e-12):
+        raise ValueError("journal corridors do not reproduce the outcome-blind case selection")
+    if corridors[["display_label", "broad_name", "narrow_name"]].isna().any().any() \
+            or (corridors[["display_label", "broad_name", "narrow_name"]]
+                .astype(str).apply(lambda column: column.str.strip().eq("")).any().any()):
+        raise ValueError("journal corridor reader labels must be nonempty")
+    if (corridors.routing_ci_low_percent > corridors.routing_change_percent).any() \
+            or (corridors.routing_ci_high_percent < corridors.routing_change_percent).any():
+        raise ValueError("journal corridor confidence interval does not contain estimate")
+    if (corridors.narrow_scope <= corridors.broad_scope).any():
+        raise ValueError("expected each narrower-scope journal example to have the higher scope score")
+
+
 def read_inputs():
     estimates = load_csv(
         RESULTS / "dirty_estimates.csv",
@@ -305,6 +371,25 @@ def read_inputs():
         ["author_role", "strata", "authors", "papers", "theta",
          "bootstrap_ci_low", "bootstrap_ci_high", "bootstrap_draws"],
     )
+    news = load_csv(
+        NEWS_ESTIMATES,
+        ["outcome", "period", "scale", "mean_broad", "mean_narrower", "estimate",
+         "se", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high", "n", "journals"],
+    )
+    news_gates = load_csv(NEWS_GATES, ["gate", "passed"])
+    selection = load_csv(
+        CASE_SELECTION,
+        ["case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
+         "broad_name", "narrow_name", "broad_scope", "narrow_scope", "broad_n",
+         "narrow_n", "shared_n", "overlap"],
+    )
+    corridors = load_csv(
+        CORRIDORS,
+        ["case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
+         "broad_name", "narrow_name", "broad_scope", "narrow_scope", "broad_n",
+         "narrow_n", "shared_n", "overlap", "routing_change_percent",
+         "routing_ci_low_percent", "routing_ci_high_percent", "subgroup_n", "journals"],
+    )
     require_finite(same_journal, "same-journal sensitivity",
                    ["estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"])
     require_finite(dynamics, "citation dynamics",
@@ -319,8 +404,10 @@ def read_inputs():
     nodes = nodes.merge(labels[["qwen_macro", "display_label"]], on="qwen_macro",
                         validate="one_to_one")
     validate_network(nodes, edges, metrics, lodo)
+    news = validate_news(news, news_gates)
+    validate_corridors(selection, corridors)
     return (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-            same_journal, dynamics, same_author)
+            same_journal, dynamics, same_author, news, selection, corridors)
 
 
 def estimate_row(estimates, analysis, outcome):
@@ -676,19 +763,7 @@ def lodo_axis(axis, values, full, title):
     axis.set_title(title, fontsize=6, pad=2)
 
 
-def figure4(nodes, edges, metrics, lodo):
-    fig = plt.figure(figsize=(MAIN_WIDTH, 5.95))
-    grid = fig.add_gridspec(
-        2, 2, width_ratios=[1.18, 1], height_ratios=[1.28, 0.72],
-        left=0.06, right=0.94, bottom=0.12, top=0.95, wspace=0.46, hspace=0.80,
-    )
-    network_axis = fig.add_subplot(grid[0, 0])
-    heat_axis = fig.add_subplot(grid[0, 1])
-    metric_grid = grid[1, 0].subgridspec(1, 3, wspace=0.42)
-    lodo_grid = grid[1, 1].subgridspec(1, 3, wspace=0.42)
-    metric_axes = [fig.add_subplot(metric_grid[0, index]) for index in range(3)]
-    lodo_axes = [fig.add_subplot(lodo_grid[0, index]) for index in range(3)]
-
+def draw_network(axis, nodes, edges):
     coordinates = nodes.set_index("qwen_macro")[["mds_x", "mds_y"]]
     selected = edges[edges.plot_edge].copy()
     pooled_max = selected.pooled_standardized_share.max()
@@ -698,73 +773,105 @@ def figure4(nodes, edges, metrics, lodo):
     for row in selected.itertuples():
         start = tuple(coordinates.loc[int(row.source_macro)])
         end = tuple(coordinates.loc[int(row.target_macro)])
-        curved_edge(network_axis, start, end, LIGHT_GRAY,
+        curved_edge(axis, start, end, LIGHT_GRAY,
                     0.35 + 1.25 * row.pooled_standardized_share / pooled_max, 0.65)
     for row in selected.itertuples():
         start = tuple(coordinates.loc[int(row.source_macro)])
         end = tuple(coordinates.loc[int(row.target_macro)])
         increased = row.standardized_share_difference >= 0
-        curved_edge(network_axis, start, end, CORAL if increased else SKY,
+        curved_edge(axis, start, end, CORAL if increased else SKY,
                     0.25 + 1.35 * abs(row.standardized_share_difference) / shift_max,
                     0.78, dashed=not increased, arrow=True)
     size = 13 + 215 * nodes.source_share.to_numpy() / nodes.source_share.max()
-    network_axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
-                         edgecolor=INK, linewidth=0.55, zorder=3)
-    node_labels(network_axis, nodes, top_n=8, fontsize=5.5)
-    network_axis.set(xticks=[], yticks=[],
-                     title="Where citations came from")
-    network_axis.set_aspect("equal", adjustable="datalim")
-    for spine in network_axis.spines.values():
+    axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
+                 edgecolor=INK, linewidth=0.55, zorder=3)
+    node_labels(axis, nodes, top_n=8, fontsize=5.5)
+    axis.set(xticks=[], yticks=[], title="How citations moved between research areas")
+    axis.set_aspect("equal", adjustable="datalim")
+    for spine in axis.spines.values():
         spine.set_visible(False)
-    network_axis.plot([], [], color=CORAL, lw=1, label="higher for narrower-scope journals")
-    network_axis.plot([], [], color=SKY, lw=1, ls="--", label="lower for narrower-scope journals")
-    network_axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.14),
-                        ncol=2, fontsize=5.5, handlelength=1.5, columnspacing=0.8)
+    axis.plot([], [], color=CORAL, lw=1, label="higher after narrower-scope publication")
+    axis.plot([], [], color=SKY, lw=1, ls="--", label="lower after narrower-scope publication")
+    axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.10),
+                ncol=1, fontsize=5.5, handlelength=1.5)
 
-    matrix = edges.pivot(index="source_macro", columns="target_macro",
-                         values="standardized_share_difference").sort_index().sort_index(axis=1)
-    limit = float(np.abs(matrix.to_numpy()).max())
-    if limit <= 0:
-        raise ValueError(f"expected nonzero network difference matrix, got limit={limit}")
-    flow_cmap = mpl.colors.LinearSegmentedColormap.from_list(
-        "flow_difference", [SKY, WHITE, CORAL],
+
+def news_source_data(news):
+    labels = {
+        "any_web_5cy": "Papers with at least one tracked page",
+        "web_pages_5cy": "Unique tracked pages",
+    }
+    source = news.copy()
+    source.insert(1, "measure", source.outcome.map(labels))
+    for name in ("mean_broad", "mean_narrower", "estimate", "ci_low", "ci_high"):
+        source[f"{name}_per_1000"] = 1000 * source[name].astype(float)
+    return source[[
+        "outcome", "measure", "mean_broad_per_1000", "mean_narrower_per_1000",
+        "estimate_per_1000", "ci_low_per_1000", "ci_high_per_1000", "n", "journals",
+    ]]
+
+
+def figure3_network_web(nodes, edges, metrics, news):
+    fig = plt.figure(figsize=(MAIN_WIDTH, 4.25))
+    grid = fig.add_gridspec(
+        2, 2, width_ratios=[1.28, 1], height_ratios=[0.72, 1],
+        left=0.055, right=0.97, bottom=0.14, top=0.94, wspace=0.34, hspace=0.76,
     )
-    image = heat_axis.imshow(matrix, cmap=flow_cmap, vmin=-limit, vmax=limit,
-                             interpolation="nearest", aspect="equal")
-    heat_ticks = np.arange(0, 32, 4)
-    heat_axis.set(xticks=heat_ticks, yticks=heat_ticks,
-                  xlabel="Citing research area",
-                  title="All links between research areas")
-    label_index = nodes.set_index("qwen_macro").display_label
-    heat_labels = [textwrap.fill(label_index.loc[int(tick)], 18) for tick in heat_ticks]
-    heat_axis.set_xticklabels(heat_labels, rotation=50, ha="right", fontsize=5.5)
-    heat_axis.set_yticklabels(heat_labels, fontsize=5.5)
-    colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
-    colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
-    colorbar.ax.tick_params(labelsize=5.5)
+    network_axis = fig.add_subplot(grid[:, 0])
+    metric_grid = grid[0, 1].subgridspec(1, 3, wspace=0.42)
+    metric_axes = [fig.add_subplot(metric_grid[0, index]) for index in range(3)]
+    web_grid = grid[1, 1].subgridspec(1, 2, width_ratios=[1.10, 0.90], wspace=0.48)
+    mean_axis, difference_axis = [fig.add_subplot(web_grid[0, index]) for index in range(2)]
+
+    draw_network(network_axis, nodes, edges)
+    panel_label(network_axis, "a", x=-0.07)
 
     ordered_metrics = ["directed_modularity", "audience_participation", "semantic_span"]
-    short = ["Citations within\nthe same area", "Diversity of\nciting areas",
-             "Mean title-text\ndistance"]
+    short = ["Within-area\nretention", "Diversity of\nciting areas",
+             "Mean semantic\ndistance"]
     indexed = metrics.set_index("metric")
     for axis, metric, title in zip(metric_axes, ordered_metrics, short):
         metric_axis(axis, indexed.loc[metric], title)
-    metric_axes[0].text(-0.28, 1.26, "c", transform=metric_axes[0].transAxes,
+    metric_axes[0].text(-0.32, 1.28, "b", transform=metric_axes[0].transAxes,
                         fontsize=8, fontweight="bold")
-    metric_axes[1].text(0.5, 1.26, "Three network summaries", transform=metric_axes[1].transAxes,
+    metric_axes[1].text(0.5, 1.28, "Three views of citation concentration",
+                        transform=metric_axes[1].transAxes,
                         ha="center", fontsize=7)
+    for axis in metric_axes:
+        axis.set_xlabel("Narrower − broader\n(×100)", fontsize=5.5)
 
-    for axis, metric, title in zip(lodo_axes, ordered_metrics, short):
-        values = lodo[lodo.metric.eq(metric)].sort_values("omitted_source_macro")
-        lodo_axis(axis, values, indexed.loc[metric, "contrast_specialized_minus_broad"], title)
-    lodo_axes[0].text(-0.28, 1.26, "d", transform=lodo_axes[0].transAxes,
-                      fontsize=8, fontweight="bold")
-    lodo_axes[1].text(0.5, 1.26, "Direction after omitting one research area",
-                      transform=lodo_axes[1].transAxes, ha="center", fontsize=7)
-    panel_label(network_axis, "a", x=-0.08)
-    panel_label(heat_axis, "b", x=-0.13)
-    fig.text(0.285, 0.075, "Narrower − broader (×100)", ha="center", fontsize=6)
-    fig.text(0.735, 0.075, "Narrower − broader (×100)", ha="center", fontsize=6)
+    source = news_source_data(news)
+    y = np.arange(len(source))[::-1]
+    broad = source.mean_broad_per_1000.to_numpy(dtype=float)
+    narrow = source.mean_narrower_per_1000.to_numpy(dtype=float)
+    for index, yi in enumerate(y):
+        mean_axis.plot([broad[index], narrow[index]], [yi, yi], color=LIGHT_GRAY, lw=1.2)
+        mean_axis.scatter(broad[index], yi, color=SKY, s=19, zorder=2)
+        mean_axis.scatter(narrow[index], yi, color=CORAL, marker="s", s=18, zorder=2)
+    mean_axis.set_yticks(y, ["Any tracked\npage", "Tracked\npages"])
+    mean_axis.set(xlabel="Per 1,000 papers", title="Adjusted means")
+    mean_axis.legend(handles=[
+        plt.Line2D([], [], marker="o", color="none", markerfacecolor=SKY,
+                   markeredgecolor=SKY, label="Broader scope"),
+        plt.Line2D([], [], marker="s", color="none", markerfacecolor=CORAL,
+                   markeredgecolor=CORAL, label="Narrower scope"),
+    ], frameon=False, fontsize=5.5, loc="lower right")
+
+    point = source.estimate_per_1000.to_numpy(dtype=float)
+    low = source.ci_low_per_1000.to_numpy(dtype=float)
+    high = source.ci_high_per_1000.to_numpy(dtype=float)
+    difference_axis.axvline(0, color=INK, lw=0.6)
+    difference_axis.errorbar(
+        point, y, xerr=np.vstack([point - low, high - point]), fmt="o", color=CORAL,
+        ms=3.5, capsize=1.5, lw=0.8,
+    )
+    difference_axis.set_yticks(y, ["Any", "Count"])
+    difference_axis.set(xlabel="Difference per 1,000\n(narrower − broader)",
+                        title="Adjusted differences")
+    mean_axis.text(-0.28, 1.18, "c", transform=mean_axis.transAxes,
+                   fontsize=8, fontweight="bold")
+    mean_axis.text(1.0, 1.18, "Tracked news, blog and web pages", transform=mean_axis.transAxes,
+                   ha="center", fontsize=7)
     return save(fig, "figure3_network")
 
 
@@ -1002,7 +1109,7 @@ def extended_data2(bins, balance, candidates):
     return save(fig, "extended_data_figure2_diagnostics")
 
 
-def sensitivity_data(estimates, analyze_run, downstream_run, same_journal, dynamics):
+def sensitivity_data(estimates, dynamics):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     winsor = estimate_row(estimates, "primary", "far_to_near_routing_winsorized")
     rows = []
@@ -1013,20 +1120,8 @@ def sensitivity_data(estimates, analyze_run, downstream_run, same_journal, dynam
 
     for item, row in (("Primary", primary), ("99.9% winsorized", winsor)):
         for statistic in ("estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"):
-            add("b" if item != "Primary" else "a", item, statistic, row[statistic],
+            add("c", item, statistic, row[statistic],
                 "results/qss_v3/dirty_estimates.csv")
-    add("a", "Separate computational rerun", "estimate", downstream_run["extra"]["reproduced_theta"],
-        "artifacts/qss_v3/run_downstream.json")
-    add("d", "Top 0.1% papers", "flow_share", analyze_run["extra"]["top_0_1_percent_flow_share"],
-        "artifacts/qss_v3/run_analyze.json")
-    add("d", "Same-topic citations", "winsor_cap", analyze_run["extra"]["winsor_caps"]["near"],
-        "artifacts/qss_v3/run_analyze.json")
-    add("d", "Other-area citations", "winsor_cap", analyze_run["extra"]["winsor_caps"]["far"],
-        "artifacts/qss_v3/run_analyze.json")
-    for row in same_journal[same_journal.estimand.isin(["external", "inclusive"])].itertuples():
-        for statistic in ("estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"):
-            add("c", row.estimand, statistic, getattr(row, statistic),
-                "results/qss_v3/same_journal_sensitivity.csv")
     any_far = estimate_row(estimates, "primary", "any_far")
     for statistic in ("estimate", "ci_low", "ci_high"):
         add("d", "Cross-fitted AIPW", statistic, any_far[statistic],
@@ -1042,29 +1137,56 @@ def sensitivity_data(estimates, analyze_run, downstream_run, same_journal, dynam
     return pd.DataFrame(rows)
 
 
-def extended_data3(estimates, analyze_run, downstream_run, same_journal, dynamics):
+def extended_data3(nodes, edges, metrics, lodo, estimates, dynamics):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     winsor = estimate_row(estimates, "primary", "far_to_near_routing_winsorized")
-    deterministic = float(downstream_run["extra"]["reproduced_theta"])
-    fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 4.55), constrained_layout=True)
-    axes = axes.ravel()
+    fig = plt.figure(figsize=(MAIN_WIDTH, 5.45))
+    grid = fig.add_gridspec(2, 2, left=0.08, right=0.96, bottom=0.09, top=0.94,
+                           wspace=0.42, hspace=0.63, height_ratios=[1.25, 0.75])
+    heat_axis = fig.add_subplot(grid[0, 0])
+    lodo_grid = grid[0, 1].subgridspec(1, 3, wspace=0.42)
+    lodo_axes = [fig.add_subplot(lodo_grid[0, index]) for index in range(3)]
+    winsor_axis = fig.add_subplot(grid[1, 0])
+    model_axis = fig.add_subplot(grid[1, 1])
 
-    forest(axes[0], pd.DataFrame([primary]), ["Primary"], colors=[CORAL], transform=percent_ratio)
-    axes[0].scatter(percent_ratio([deterministic]), [-0.28], marker="D", facecolor=WHITE,
-                    edgecolor=NAVY, s=22, zorder=3)
-    axes[0].text(percent_ratio([deterministic])[0], -0.48, "separate rerun\n(point only)",
-                 ha="center", fontsize=5.5)
-    axes[0].set_ylim(-0.72, 0.45)
-    axes[0].set(xlabel="Ratio change (%)", title="Separate computational rerun")
+    matrix = edges.pivot(index="source_macro", columns="target_macro",
+                         values="standardized_share_difference").sort_index().sort_index(axis=1)
+    limit = float(np.abs(matrix.to_numpy()).max())
+    if limit <= 0:
+        raise ValueError(f"expected nonzero network difference matrix, got limit={limit}")
+    flow_cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        "flow_difference", [SKY, WHITE, CORAL],
+    )
+    image = heat_axis.imshow(matrix, cmap=flow_cmap, vmin=-limit, vmax=limit,
+                             interpolation="nearest", aspect="equal")
+    heat_ticks = np.arange(0, 32, 4)
+    names = nodes.set_index("qwen_macro").display_label
+    heat_labels = [textwrap.fill(names.loc[int(tick)], 18) for tick in heat_ticks]
+    heat_axis.set(xticks=heat_ticks, yticks=heat_ticks,
+                  xlabel="Citing paper area", ylabel="Focal paper area",
+                  title="All 1,024 links between research areas")
+    heat_axis.set_xticklabels(heat_labels, rotation=50, ha="right", fontsize=5)
+    heat_axis.set_yticklabels(heat_labels, fontsize=5)
+    colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
+    colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
+    colorbar.ax.tick_params(labelsize=5.5)
 
-    forest(axes[1], pd.DataFrame([primary, winsor]), ["Raw counts", "99.9% winsorized"],
+    ordered_metrics = ["directed_modularity", "audience_participation", "semantic_span"]
+    short = ["Within-area\nretention", "Diversity of\nciting areas", "Mean semantic\ndistance"]
+    indexed = metrics.set_index("metric")
+    for axis, metric, title in zip(lodo_axes, ordered_metrics, short):
+        values = lodo[lodo.metric.eq(metric)].sort_values("omitted_source_macro")
+        lodo_axis(axis, values, indexed.loc[metric, "contrast_specialized_minus_broad"], title)
+        axis.set_xlabel("Narrower − broader\n(×100)", fontsize=5.5)
+    lodo_axes[0].text(-0.32, 1.18, "b", transform=lodo_axes[0].transAxes,
+                      fontsize=8, fontweight="bold")
+    lodo_axes[1].text(0.5, 1.18, "Direction after omitting one research area",
+                      transform=lodo_axes[1].transAxes, ha="center", fontsize=7)
+
+    forest(winsor_axis, pd.DataFrame([primary, winsor]), ["Raw counts", "99.9% winsorized"],
            colors=[CORAL, NAVY], transform=percent_ratio)
-    axes[1].set(xlabel="Ratio change (%)", title="99.9% winsorization")
-
-    definitions = same_journal.set_index("estimand").loc[["external", "inclusive"]].reset_index()
-    forest(axes[2], definitions, ["Primary exclusions", "+ same-journal"],
-           colors=[NAVY, CORAL], transform=percent_ratio)
-    axes[2].set(xlabel="Ratio change (%)", title="Adding same-journal citations (IPW)")
+    winsor_axis.set(xlabel="Other-area / same-topic ratio change (%)",
+                    title="High-citation papers do not explain the result")
 
     any_far = estimate_row(estimates, "primary", "any_far")
     ipw_any = dynamics[(dynamics.horizon_months == 60) & dynamics.outcome.eq("any_distant")]
@@ -1072,12 +1194,13 @@ def extended_data3(estimates, analyze_run, downstream_run, same_journal, dynamic
         raise ValueError(f"expected one 60-month IPW any-distant row, got {len(ipw_any)}")
     ipw_any = ipw_any.rename(columns={"specialized_minus_broad": "estimate"})
     any_models = pd.concat([pd.DataFrame([any_far]), ipw_any], ignore_index=True)
-    forest(axes[3], any_models, ["Cross-fitted AIPW", "Fixed-support IPW"],
+    forest(model_axis, any_models, ["Cross-fitted AIPW", "Fixed-support IPW"],
            colors=[CORAL, NAVY], transform=lambda values: 100 * np.asarray(values, dtype=float))
-    axes[3].set(xlabel="Narrower minus broader (pp)",
-                title="Cited by another area at 60 months")
-    for label, axis in zip("abcd", axes):
-        panel_label(axis, label)
+    model_axis.set(xlabel="Narrower minus broader (percentage points)",
+                   title="Any citation from another area at 60 months")
+    panel_label(heat_axis, "a", x=-0.16)
+    panel_label(winsor_axis, "c", x=-0.14)
+    panel_label(model_axis, "d", x=-0.14)
     return save(fig, "extended_data_figure3_sensitivities")
 
 
@@ -1099,65 +1222,79 @@ def tidy_tests(tests):
     return frame
 
 
-def extended_data4(subgroups, labels):
-    domains = subgroup_frame(subgroups, "semantic_domain").merge(
-        labels[["qwen_macro", "display_label", "representative_journals"]],
-        left_on="level", right_on="qwen_macro", validate="one_to_one",
-    ).sort_values("estimate")
-    years = subgroup_frame(subgroups, "publication_year")
-    breadth = subgroup_frame(subgroups, "paper_venue_fit")
-    author_breadth = subgroup_frame(subgroups, "author_audience_breadth")
-    author_works = subgroup_frame(subgroups, "author_publication_experience")
-    fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 6.75), constrained_layout=True,
-                             gridspec_kw={"height_ratios": [1.55, 1]})
+def extended_data4(corridors, nodes):
+    corridors = corridors.sort_values("case_rank")
+    scope_low = float(corridors[["broad_scope", "narrow_scope"]].min().min())
+    scope_high = float(corridors[["broad_scope", "narrow_scope"]].max().max())
+    scope_pad = max(0.002, 0.08 * (scope_high - scope_low))
+    effect_low = min(-1.0, float(corridors.routing_ci_low_percent.min()))
+    effect_high = max(1.0, float(corridors.routing_ci_high_percent.max()))
+    effect_pad = 0.08 * (effect_high - effect_low)
+    fig, axes = plt.subplots(2, 2, figsize=(MAIN_WIDTH, 5.65))
+    fig.subplots_adjust(left=0.04, right=0.98, bottom=0.05, top=0.97,
+                        wspace=0.12, hspace=0.20)
+    node_size = 5 + 55 * nodes.source_share.to_numpy() / nodes.source_share.max()
 
-    domain_labels = [row.display_label for row in domains.itertuples()]
-    forest(axes[0, 0], domains, domain_labels, colors=[NAVY] * 32, transform=percent_ratio)
-    axes[0, 0].set_xlim(-55, 105)
-    d18_position = next(index for index, row in enumerate(domains.itertuples())
-                        if int(row.qwen_macro) == 18)
-    d18_y = len(domains) - 1 - d18_position
-    d18_high = percent_ratio([domains.iloc[d18_position].ci_high])[0]
-    axes[0, 0].scatter([103], [d18_y], marker=">", s=15, color=NAVY, clip_on=False)
-    axes[0, 0].annotate(f"upper CI {d18_high:.0f}%", (100, d18_y),
-                        xytext=(58, d18_y + 1.1), fontsize=5,
-                        arrowprops={"arrowstyle": "-", "color": MID_GRAY, "lw": 0.35})
-    axes[0, 0].set(xlabel="Other-area / same-topic ratio change (%)",
-                   title="Research areas inferred from titles")
-    axes[0, 0].tick_params(axis="y", labelsize=5)
+    for label, axis, row in zip("abcd", axes.ravel(), corridors.itertuples()):
+        axis.set_axis_off()
+        axis.add_patch(FancyBboxPatch(
+            (0.01, 0.01), 0.98, 0.98, transform=axis.transAxes,
+            boxstyle="round,pad=0.012,rounding_size=0.02", facecolor="#FAFAFA",
+            edgecolor=LIGHT_GRAY, linewidth=0.7, clip_on=False,
+        ))
+        axis.text(0.05, 0.92, textwrap.fill(str(row.display_label), 42), transform=axis.transAxes,
+                  fontsize=8, fontweight="bold", va="top")
+        axis.text(0.05, 0.81, "Journal examples selected without using citation outcomes",
+                  transform=axis.transAxes, fontsize=5.5, color=MID_GRAY, va="top")
+        panel_label(axis, label, x=0.00, y=0.99)
 
-    axis = axes[0, 1]
-    x = years.level.map(normalize_level).to_numpy()
-    point = percent_ratio(years.estimate)
-    low, high = percent_ratio(years.ci_low), percent_ratio(years.ci_high)
-    axis.axhline(0, color=INK, lw=0.6)
-    axis.errorbar(x, point, yerr=np.vstack([point - low, high - point]), fmt="o-",
-                  color=CORAL, capsize=1.5, lw=0.8, ms=3)
-    axis.set_xticks(x)
-    axis.set(xlabel="Publication cohort", ylabel="Other-area / same-topic ratio change (%)",
-             title="Publication cohorts")
+        axis.text(0.08, 0.73, "Broader: " + textwrap.shorten(str(row.broad_name), 45),
+                  transform=axis.transAxes, fontsize=5.5, color=SKY, va="top")
+        axis.text(0.08, 0.66, "Narrower: " + textwrap.shorten(str(row.narrow_name), 43),
+                  transform=axis.transAxes, fontsize=5.5, color=CORAL, va="top")
+        scope_axis = axis.inset_axes([0.08, 0.39, 0.55, 0.17])
+        scope_axis.plot([row.broad_scope, row.narrow_scope], [0, 0], color=LIGHT_GRAY, lw=1.3)
+        scope_axis.scatter(row.broad_scope, 0, color=SKY, s=22, zorder=2)
+        scope_axis.scatter(row.narrow_scope, 0, color=CORAL, marker="s", s=21, zorder=2)
+        scope_axis.set_yticks([])
+        scope_axis.set_xlim(scope_low - scope_pad, scope_high + scope_pad)
+        scope_axis.set_ylim(-0.4, 0.4)
+        scope_axis.set_xlabel("Venue-free journal scope score", fontsize=5.5)
+        scope_axis.tick_params(axis="both", labelsize=5)
 
-    forest(axes[1, 0], breadth, ["Q1 narrow refs", "Q2", "Q3", "Q4 broad refs"],
-           colors=[NAVY] * 4, transform=percent_ratio)
-    axes[1, 0].set(xlabel="Other-area / same-topic ratio change (%)",
-                   title="Paper reference breadth")
+        map_axis = axis.inset_axes([0.70, 0.48, 0.23, 0.27])
+        map_axis.scatter(nodes.mds_x, nodes.mds_y, s=node_size, color=PALE_GRAY,
+                         edgecolor=LIGHT_GRAY, linewidth=0.25)
+        selected = nodes[nodes.qwen_macro.eq(int(row.qwen_macro))]
+        if len(selected) != 1:
+            raise ValueError(f"expected one map node for corridor {row.qwen_macro}, got {len(selected)}")
+        map_axis.scatter(selected.mds_x, selected.mds_y, s=42, color=CORAL,
+                         edgecolor=INK, linewidth=0.45, zorder=3)
+        map_axis.set(xticks=[], yticks=[], title="Location in frozen text map")
+        map_axis.set_aspect("equal", adjustable="datalim")
+        for spine in map_axis.spines.values():
+            spine.set_visible(False)
 
-    axis = axes[1, 1]
-    for frame, label, color, marker in (
-        (author_breadth, "Prior semantic breadth", TEAL, "o"),
-        (author_works, "Prior publication experience", NAVY, "s"),
-    ):
-        x = frame.level.map(normalize_level).to_numpy()
-        point = percent_ratio(frame.estimate)
-        low, high = percent_ratio(frame.ci_low), percent_ratio(frame.ci_high)
-        axis.errorbar(x, point, yerr=np.vstack([point - low, high - point]), fmt=marker + "-",
-                      color=color, capsize=1.5, lw=0.8, ms=3, label=label)
-    axis.axhline(0, color=INK, lw=0.6)
-    axis.set_xticks([1, 2, 3, 4])
-    axis.set(xlabel="Quartile", ylabel="Other-area / same-topic ratio change (%)", title="Author history")
-    axis.legend(frameon=False)
-    for label, axis in zip("abcd", axes.ravel()):
-        panel_label(axis, label, x=-0.12)
+        effect_axis = axis.inset_axes([0.69, 0.14, 0.25, 0.20])
+        effect_axis.axvline(0, color=INK, lw=0.5)
+        effect_axis.errorbar(
+            row.routing_change_percent, 0,
+            xerr=[[row.routing_change_percent - row.routing_ci_low_percent],
+                  [row.routing_ci_high_percent - row.routing_change_percent]],
+            fmt="o", color=CORAL, ms=3.5, capsize=1.5, lw=0.8,
+        )
+        effect_axis.set_xlim(effect_low - effect_pad, effect_high + effect_pad)
+        effect_axis.set_yticks([])
+        effect_axis.set_title("Area-wide estimate\n(all journals)", fontsize=5.7, pad=2)
+        effect_axis.set_xlabel("Ratio change (%)", fontsize=5.5)
+        effect_axis.tick_params(axis="x", labelsize=5)
+
+        axis.text(0.08, 0.14,
+                  f"Shared content-cell support: {int(row.shared_n):,}\n"
+                  f"Overlap score: {row.overlap:.2f}",
+                  transform=axis.transAxes, fontsize=5.5, va="bottom", linespacing=1.35)
+        axis.text(0.08, 0.05, "The journals illustrate scope; the estimate uses all journals in this area.",
+                  transform=axis.transAxes, fontsize=5.3, color=MID_GRAY, va="bottom")
     return save(fig, "extended_data_figure4_heterogeneity")
 
 
@@ -1175,7 +1312,9 @@ def main():
         "SourceData_Figure3_estimates.csv", "SourceData_Figure3_tests.csv",
         "SourceData_Figure4_nodes.csv", "SourceData_Figure4_edges.csv",
         "SourceData_Figure4_metrics.csv", "SourceData_Figure4_lodo.csv",
-        "SourceData_Figure4_tests.csv",
+        "SourceData_Figure4_tests.csv", "SourceData_Figure3_lodo.csv",
+        "SourceData_ED4_subgroups.csv", "SourceData_ED4_tests.csv",
+        "SourceData_ED4_domain_labels.csv",
     ]
     for name in SOURCE_FILES + stale_sources + ["source_data_manifest.csv"]:
         path = SOURCE_DATA / name
@@ -1184,7 +1323,7 @@ def main():
     style()
 
     (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-     same_journal, dynamics, same_author) = read_inputs()
+     same_journal, dynamics, same_author, news, selection, corridors) = read_inputs()
     manifests = {
         "v2_exposure": load_json(V2_ARTIFACTS / "run_exposure.json"),
         "v2_dirty": load_json(V2_ARTIFACTS / "run_dirty_analyze.json"),
@@ -1192,7 +1331,16 @@ def main():
         "v3_analyze": load_json(ARTIFACTS / "run_analyze.json"),
         "downstream": load_json(ARTIFACTS / "run_downstream.json"),
         "network": load_json(ARTIFACTS / "run_network.json"),
+        "news": load_json(ARTIFACTS / "run_news.json"),
+        "cases": load_json(ARTIFACTS / "run_cases.json"),
     }
+    actual_selection_hash = hashlib.sha256(CASE_SELECTION.read_bytes()).hexdigest()
+    cases_extra = manifests["cases"].get("extra", {})
+    if cases_extra.get("selection_sha256") != actual_selection_hash \
+            or cases_extra.get("selection_used_pre_outcome_columns_only") is not True:
+        raise ValueError("case-selection hash or outcome-blind manifest assertion failed")
+    if manifests["news"].get("extra", {}).get("promote_to_main_text") is not True:
+        raise ValueError("Figure 3 requires run_news promote_to_main_text=true")
     network_counts = manifests["network"]["counts"]
     expected_network_counts = {
         "nodes": 32, "edge_cells": 1024, "bootstrap_draws": 500,
@@ -1221,7 +1369,7 @@ def main():
                  "results/qss_v3/dirty_estimates.csv")
     write_source("SourceData_Figure4_same_author.csv", same_author,
                  "Figure 4", "b", "results/qss_v3/same_author_sensitivity.csv")
-    paths += figure4(nodes, edges, metrics, lodo)
+    paths += figure3_network_web(nodes, edges, metrics, news)
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
     source_edges = edges.rename(columns={
@@ -1241,12 +1389,12 @@ def main():
         raise ValueError("reader-facing network Source Data lost a domain name")
     write_source("SourceData_Figure3_nodes.csv", source_nodes, "Figure 3", "a",
                  "results/qss_v3/network_nodes.csv")
-    write_source("SourceData_Figure3_edges.csv", source_edges, "Figure 3", "a-b",
+    write_source("SourceData_Figure3_edges.csv", source_edges, "Figure 3", "a",
                  "results/qss_v3/network_edges.csv")
-    write_source("SourceData_Figure3_metrics.csv", metrics, "Figure 3", "c",
+    write_source("SourceData_Figure3_metrics.csv", metrics, "Figure 3", "b",
                  "results/qss_v3/network_metrics.csv")
-    write_source("SourceData_Figure3_lodo.csv", source_lodo, "Figure 3", "d",
-                 "results/qss_v3/network_leave_one_domain_out.csv")
+    write_source("SourceData_Figure3_web.csv", news_source_data(news), "Figure 3", "c",
+                 "results/qss_v3/news_estimates.csv;results/qss_v3/news_gates.csv")
 
     ed1 = ed1_data(
         manifests["v2_dirty"], manifests["v3_prepare"], manifests["v3_analyze"],
@@ -1266,44 +1414,33 @@ def main():
                  "results/qss_v3/propensity_candidates.csv;results/qss_v3/downstream_propensity.csv")
     write_source("SourceData_ED2_propensity_bins.csv", bins, "Extended Data Figure 2", "a",
                  "qss_v3/routing_scores.parquet")
-    sensitivity = sensitivity_data(
-        estimates, manifests["v3_analyze"], manifests["downstream"], same_journal, dynamics,
-    )
-    paths += extended_data3(
-        estimates, manifests["v3_analyze"], manifests["downstream"], same_journal, dynamics,
-    )
+    sensitivity = sensitivity_data(estimates, dynamics)
+    paths += extended_data3(nodes, edges, metrics, lodo, estimates, dynamics)
+    write_source("SourceData_ED3_network_edges.csv", source_edges,
+                 "Extended Data Figure 3", "a", "results/qss_v3/network_edges.csv")
+    write_source("SourceData_ED3_lodo.csv", source_lodo,
+                 "Extended Data Figure 3", "b",
+                 "results/qss_v3/network_leave_one_domain_out.csv")
     write_source("SourceData_ED3_sensitivities.csv", sensitivity,
-                 "Extended Data Figure 3", "a-d",
-                 "results/qss_v3/dirty_estimates.csv;artifacts/qss_v3/run_analyze.json;"
-                 "artifacts/qss_v3/run_downstream.json;"
-                 "results/qss_v3/same_journal_sensitivity.csv;"
-                 "results/qss_v3/citation_dynamics.csv")
-    paths += extended_data4(subgroups, labels)
-    source_subgroups = subgroups.copy()
-    domain_rows = source_subgroups.test.eq("semantic_domain")
-    source_subgroups["research_domain"] = "Not applicable"
-    source_subgroups.loc[domain_rows, "modifier"] = "text_defined_research_domain"
-    source_subgroups.loc[domain_rows, "research_domain"] = (
-        pd.to_numeric(source_subgroups.loc[domain_rows, "level"]).map(domain_names)
-    )
-    if source_subgroups.loc[domain_rows, "research_domain"].isna().any():
-        raise ValueError("reader-facing subgroup Source Data lost a domain name")
-    source_tests = tidy_tests(tests)
-    source_tests["modifier"] = source_tests.modifier.replace(
-        {"qwen_macro": "text_defined_research_domain"}
-    )
-    write_source("SourceData_ED4_subgroups.csv", source_subgroups, "Extended Data Figure 4", "a-d",
-                 "results/qss_v3/subgroup_estimates.csv")
-    write_source("SourceData_ED4_tests.csv", source_tests,
-                 "Extended Data Figure 4", "a-d", "results/qss_v3/subgroup_tests.csv")
-    write_source("SourceData_ED4_domain_labels.csv",
-                 labels.rename(columns={"qwen_macro": "internal_domain_id"}),
-                 "Extended Data Figure 4", "a",
-                 "results/qss_v3/macro_labels.csv")
+                 "Extended Data Figure 3", "c-d",
+                 "results/qss_v3/dirty_estimates.csv;results/qss_v3/citation_dynamics.csv")
+    paths += extended_data4(corridors, nodes)
+    corridor_columns = [
+        "case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
+        "broad_name", "narrow_name", "broad_scope", "narrow_scope", "broad_n",
+        "narrow_n", "shared_n", "overlap", "routing_change_percent",
+        "routing_ci_low_percent", "routing_ci_high_percent", "subgroup_n", "journals",
+    ]
+    write_source("SourceData_ED4_corridors.csv", corridors[corridor_columns],
+                 "Extended Data Figure 4", "a-d",
+                 "results/qss_v3/case_selection.csv;results/qss_v3/journal_corridors.csv")
+    write_source("SourceData_ED4_nodes.csv", source_nodes[
+        ["internal_domain_id", "display_label", "mds_x", "mds_y", "source_share"]
+    ], "Extended Data Figure 4", "a-d", "results/qss_v3/network_nodes.csv")
 
     manifest = pd.DataFrame(source_records).sort_values(["figure/panel", "source_file"])
-    if len(manifest) != 16 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 16:
-        raise ValueError(f"expected 16 hashed source-data files, got {len(manifest)}")
+    if len(manifest) != 17 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 17:
+        raise ValueError(f"expected 17 hashed source-data files, got {len(manifest)}")
     manifest.to_csv(SOURCE_DATA / "source_data_manifest.csv", index=False)
     if len(paths) != 16 or len(list(FIGURES.glob("*.pdf"))) != 8 \
             or len(list(FIGURES.glob("*.png"))) != 8:
