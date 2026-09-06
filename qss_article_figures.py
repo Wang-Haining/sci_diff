@@ -414,6 +414,25 @@ def measurement_data(con, nodes, exposure_run):
     rows.append({"panel": "b", "mark": "reliability", "item": "Spearman-Brown",
                  "x": reliability["spearman_brown"], "y": reliability["split_n"],
                  "value": reliability["pearson"]})
+    for label, column, extra_filter, sign in (
+        ("Title versus title-and-abstract", "semantic_abstract_similarity",
+         "AND semantic_abstract_reliable", 1),
+        ("Title versus reference-field HHI", "reference_field_hhi", "", 1),
+        ("Title versus negative reference-field entropy", "reference_field_entropy", "", -1),
+        ("Title versus topic HHI", "topic_hhi", "", 1),
+        ("Title versus negative topic entropy", "topic_entropy", "", -1),
+    ):
+        pair = con.execute(f"""
+          SELECT semantic_title_similarity AS title_score, {column} AS comparison
+          FROM read_parquet(?)
+          WHERE semantic_reliable AND {column} IS NOT NULL {extra_filter}
+        """, [str(SCOPE)]).df()
+        rho = sign * pair.title_score.rank(method="average").corr(
+            pair.comparison.rank(method="average"))
+        if len(pair) < 50_000 or not np.isfinite(rho):
+            raise ValueError(f"invalid scope validity {label}: n={len(pair)} rho={rho}")
+        rows.append({"panel": "b", "mark": "convergent validity", "item": label,
+                     "x": float(rho), "y": int(len(pair)), "value": int(sign)})
     rows += [{"panel": "c", "mark": "choice-set schematic", "item": label,
               "x": x, "y": y, "value": arm}
              for label, x, y, arm in (("broad", 0.18, 0.34, 0), ("broad", 0.30, 0.68, 0),
@@ -1190,11 +1209,16 @@ def main():
     paths += figure4(nodes, edges, metrics, lodo)
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
-    source_edges = edges.assign(
+    source_edges = edges.rename(columns={
+        "source_macro": "source_internal_domain_id",
+        "target_macro": "citing_internal_domain_id",
+    }).assign(
         source_domain=edges.source_macro.map(domain_names),
         citing_domain=edges.target_macro.map(domain_names),
     )
-    source_lodo = lodo.assign(
+    source_lodo = lodo.rename(columns={
+        "omitted_source_macro": "omitted_internal_domain_id",
+    }).assign(
         omitted_source_domain=lodo.omitted_source_macro.map(domain_names),
     )
     if source_edges[["source_domain", "citing_domain"]].isna().any().any() \
