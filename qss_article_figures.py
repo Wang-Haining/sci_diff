@@ -86,7 +86,7 @@ SOURCE_FILES = [
 def style():
     mpl.rcParams.update({
         "font.family": "sans-serif",
-        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+        "font.sans-serif": ["Nimbus Sans", "Arial", "Helvetica", "DejaVu Sans"],
         "font.size": 7,
         "axes.labelsize": 7,
         "axes.titlesize": 7,
@@ -494,9 +494,9 @@ def figure1(con, nodes, exposure_run):
                   color=[item[2] for item in checks], s=12, zorder=2)
     inset.set(xlim=(0, 1), xticks=[0, 0.5, 1], yticks=y,
               yticklabels=[item[0] for item in checks])
-    inset.tick_params(axis="both", labelsize=4.4, pad=1)
+    inset.tick_params(axis="both", labelsize=5.5, pad=1)
     inset.spines[["top", "right"]].set_visible(False)
-    inset.set_xlabel("Agreement", fontsize=4.8, labelpad=1)
+    inset.set_xlabel("Agreement", fontsize=5.5, labelpad=1)
 
     axis = axes[2]
     axis.axis("off")
@@ -519,7 +519,7 @@ def figure1(con, nodes, exposure_run):
     axis = axes[3]
     size = 8 + 140 * nodes.source_share.to_numpy() / nodes.source_share.max()
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE, edgecolor=NAVY, lw=0.55)
-    node_labels(axis, nodes, top_n=8, fontsize=4.5)
+    node_labels(axis, nodes, top_n=8, fontsize=5.5)
     axis.set(xticks=[], yticks=[], title="Text-defined research domains")
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
@@ -658,7 +658,7 @@ def figure3(estimates, subgroups, tests, same_author):
 def curved_edge(axis, start, end, color, width, alpha, dashed=False, arrow=False):
     patch = FancyArrowPatch(
         start, end, connectionstyle="arc3,rad=0.11",
-        arrowstyle="-|>" if arrow else "-", mutation_scale=4,
+        arrowstyle="-|>" if arrow else "-", mutation_scale=6,
         linewidth=width, color=color, alpha=alpha,
         linestyle="--" if dashed else "-", shrinkA=4, shrinkB=4,
         capstyle="round", joinstyle="round", zorder=1 if not arrow else 2,
@@ -712,7 +712,7 @@ def figure4(nodes, edges, metrics, lodo):
         start = tuple(coordinates.loc[int(row.source_macro)])
         end = tuple(coordinates.loc[int(row.target_macro)])
         curved_edge(network_axis, start, end, LIGHT_GRAY,
-                    0.25 + 1.15 * row.pooled_standardized_share / pooled_max, 0.55)
+                    0.35 + 1.25 * row.pooled_standardized_share / pooled_max, 0.65)
     for row in selected.itertuples():
         start = tuple(coordinates.loc[int(row.source_macro)])
         end = tuple(coordinates.loc[int(row.target_macro)])
@@ -723,7 +723,7 @@ def figure4(nodes, edges, metrics, lodo):
     size = 13 + 215 * nodes.source_share.to_numpy() / nodes.source_share.max()
     network_axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
                          edgecolor=INK, linewidth=0.55, zorder=3)
-    node_labels(network_axis, nodes, top_n=8, fontsize=4.5)
+    node_labels(network_axis, nodes, top_n=8, fontsize=5.5)
     network_axis.set(xticks=[], yticks=[],
                      title="Citation-flow differences")
     network_axis.set_aspect("equal", adjustable="datalim")
@@ -732,7 +732,7 @@ def figure4(nodes, edges, metrics, lodo):
     network_axis.plot([], [], color=CORAL, lw=1, label="higher under specialized")
     network_axis.plot([], [], color=SKY, lw=1, ls="--", label="lower under specialized")
     network_axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.14),
-                        ncol=2, fontsize=5, handlelength=1.5, columnspacing=0.8)
+                        ncol=2, fontsize=5.5, handlelength=1.5, columnspacing=0.8)
 
     matrix = edges.pivot(index="source_macro", columns="target_macro",
                          values="standardized_share_difference").sort_index().sort_index(axis=1)
@@ -744,16 +744,18 @@ def figure4(nodes, edges, metrics, lodo):
     )
     image = heat_axis.imshow(matrix, cmap=flow_cmap, vmin=-limit, vmax=limit,
                              interpolation="nearest", aspect="equal")
-    heat_axis.set(xticks=[], yticks=np.arange(0, 32, 4),
+    heat_ticks = np.arange(0, 32, 4)
+    heat_axis.set(xticks=heat_ticks, yticks=heat_ticks,
                   xlabel="Citing research domain (same order as rows)",
                   title="All domain-to-domain cells")
     heat_labels = ["Business/economics", "Plant/microbiology", "Humanities/politics",
                    "Computing/networks", "Public health/care", "Civil/structural eng.",
                    "Astronomy/imaging", "Education/language"]
-    heat_axis.set_yticklabels(heat_labels, fontsize=5)
+    heat_axis.set_xticklabels(heat_labels, rotation=50, ha="right", fontsize=5.5)
+    heat_axis.set_yticklabels(heat_labels, fontsize=5.5)
     colorbar = fig.colorbar(image, ax=heat_axis, fraction=0.045, pad=0.03)
     colorbar.ax.set_title("Δ share", fontsize=6, pad=3)
-    colorbar.ax.tick_params(labelsize=5)
+    colorbar.ax.tick_params(labelsize=5.5)
 
     ordered_metrics = ["directed_modularity", "audience_participation", "semantic_span"]
     short = ["Directed Q", "Participation", "Semantic span"]
