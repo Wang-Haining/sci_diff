@@ -758,8 +758,8 @@ def draw_network(axis, nodes, edges):
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
         spine.set_visible(False)
-    axis.plot([], [], color=CORAL, lw=1, label="higher after narrower-scope publication")
-    axis.plot([], [], color=SKY, lw=1, ls="--", label="lower after narrower-scope publication")
+    axis.plot([], [], color=CORAL, lw=1, label="higher for narrower-scope papers")
+    axis.plot([], [], color=SKY, lw=1, ls="--", label="lower for narrower-scope papers")
     axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.10),
                 ncol=1, fontsize=5.5, handlelength=1.5)
 
