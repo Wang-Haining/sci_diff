@@ -1,0 +1,28 @@
+{
+  "design": "qss_v3",
+  "stage": "cases",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "6fd77e232f4638007e122279b2f490dd123d2a42",
+  "timestamp_utc": "2026-09-07T05:28:41.195215+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0"
+  },
+  "counts": {
+    "selected_cases": 4,
+    "case_rows": 4
+  },
+  "extra": {
+    "selection_sha256": "a63378b582c6c19c77ffd179538fd2b3bb16addfc2fecf8df20e5500ebaba323",
+    "selection_used_pre_outcome_columns_only": true
+  }
+}

@@ -1,0 +1,8 @@
+gate,passed
+primary_any_and_count_negative_ci,True
+both_years_same_direction,True
+top_host_exclusion_same_direction,True
+sciscinet_linkage_at_least_95_percent_and_within_2pp,True
+each_arm_ess_at_least_20_percent,False
+common_support_at_least_50_percent,False
+promote_to_main_text,False
