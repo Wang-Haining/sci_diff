@@ -70,7 +70,7 @@ FIGURE_NAMES = [
 ]
 NODE_LABEL_OFFSETS = {
     4: (10, 7), 7: (13, 0), 8: (-8, 10), 9: (-17, -7),
-    12: (17, 8), 18: (-14, -8), 30: (12, -12), 31: (-15, 6),
+    12: (17, 8), 18: (-28, -8), 30: (28, -12), 31: (-15, 6),
 }
 SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
@@ -760,15 +760,15 @@ def draw_network(axis, nodes, edges):
         spine.set_visible(False)
     axis.plot([], [], color=CORAL, lw=1, label="higher for narrower-scope papers")
     axis.plot([], [], color=SKY, lw=1, ls="--", label="lower for narrower-scope papers")
-    axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.10),
+    axis.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.24),
                 ncol=1, fontsize=5.5, handlelength=1.5)
 
 
 def figure3_network(nodes, edges, metrics):
-    fig = plt.figure(figsize=(MAIN_WIDTH, 3.55))
+    fig = plt.figure(figsize=(MAIN_WIDTH, 3.75))
     grid = fig.add_gridspec(
         1, 2, width_ratios=[1.42, 1],
-        left=0.055, right=0.97, bottom=0.16, top=0.84, wspace=0.34,
+        left=0.055, right=0.97, bottom=0.24, top=0.84, wspace=0.34,
     )
     network_axis = fig.add_subplot(grid[0, 0])
     metric_grid = grid[0, 1].subgridspec(3, 1, hspace=1.05)
