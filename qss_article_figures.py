@@ -754,7 +754,8 @@ def draw_network(axis, nodes, edges):
     axis.scatter(nodes.mds_x, nodes.mds_y, s=size, color=WHITE,
                  edgecolor=INK, linewidth=0.55, zorder=3)
     node_labels(axis, nodes, top_n=8, fontsize=5.5)
-    axis.set(xticks=[], yticks=[], title="How citations moved between research areas")
+    axis.set(xticks=[], yticks=[])
+    axis.set_title("How citations moved between research areas", pad=10)
     axis.set_aspect("equal", adjustable="datalim")
     for spine in axis.spines.values():
         spine.set_visible(False)
