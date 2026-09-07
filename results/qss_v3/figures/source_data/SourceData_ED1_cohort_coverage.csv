@@ -1,16 +1,16 @@
 panel,arm,measure,value,unit
 a,all,Eligible focal papers,7617662.0,papers
-a,all,Network-refit support papers,3827491.0,papers
-b,Broad,Focal paper in distribution,0.9939456323256405,proportion
-b,Broad,Citing-paper classification,0.9660710903817803,proportion
-b,Broad,Reference classification,0.9317584124089832,proportion
-b,Specialized,Focal paper in distribution,0.9895899391711134,proportion
-b,Specialized,Citing-paper classification,0.9720528641240476,proportion
-b,Specialized,Reference classification,0.9385637855245966,proportion
-c,Broad,Focal paper dated 1 January,0.1990518949099392,proportion
-c,Broad,Citing paper dated 1 January,0.08426183380189244,proportion
-c,Specialized,Focal paper dated 1 January,0.0910877511504271,proportion
-c,Specialized,Citing paper dated 1 January,0.08035817505835711,proportion
-d,all,Excluded External,7406045.0,citation edges
-d,all,External Unclassified,837858.0,citation edges
-d,all,Eligible,23609934.0,citation edges
+a,all,Subgroup and network sample,3827491.0,papers
+b,Broader scope,Focal paper in distribution,0.9939456323256405,proportion
+b,Broader scope,Citing-paper classification,0.9660710903817803,proportion
+b,Broader scope,Reference classification,0.9317584124089832,proportion
+b,Narrower scope,Focal paper in distribution,0.9895899391711134,proportion
+b,Narrower scope,Citing-paper classification,0.9720528641240476,proportion
+b,Narrower scope,Reference classification,0.9385637855245966,proportion
+c,Broader scope,Focal paper dated 1 January,0.1990518949099392,proportion
+c,Broader scope,Citing paper dated 1 January,0.08426183380189244,proportion
+c,Narrower scope,Focal paper dated 1 January,0.0910877511504271,proportion
+c,Narrower scope,Citing paper dated 1 January,0.08035817505835711,proportion
+d,all,Same journal/author,7406045.0,citation edges
+d,all,Area unavailable,837858.0,citation edges
+d,all,Included,23609934.0,citation edges
