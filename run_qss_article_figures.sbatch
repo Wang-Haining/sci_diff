@@ -11,7 +11,7 @@
 #SBATCH --error=/home/g91p721/logs/sci_diff_article_figures_%j.err
 
 set -euo pipefail
-cd /home/g91p721/sci_diff
+cd /home/g91p721/sci_diff_news
 export PYTHONUNBUFFERED=1
 source /home/group/jasonclark/g91p721/sci_diff/qss_venv/bin/activate
 python qss_article_figures.py
