@@ -69,7 +69,7 @@ FIGURE_NAMES = [
     "extended_data_figure3_sensitivities", "extended_data_figure4_heterogeneity",
 ]
 NODE_LABEL_OFFSETS = {
-    4: (10, 7), 7: (13, 0), 8: (-8, 10), 9: (-17, -7),
+    4: (-24, 10), 7: (13, 0), 8: (-8, 10), 9: (-17, -7),
     12: (17, 8), 18: (-28, -8), 30: (28, -12), 31: (-15, 6),
 }
 SOURCE_FILES = [
@@ -1057,7 +1057,7 @@ def extended_data3(nodes, edges, metrics, lodo, estimates, dynamics):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     winsor = estimate_row(estimates, "primary", "far_to_near_routing_winsorized")
     fig = plt.figure(figsize=(MAIN_WIDTH, 5.45))
-    grid = fig.add_gridspec(2, 2, left=0.08, right=0.96, bottom=0.09, top=0.94,
+    grid = fig.add_gridspec(2, 2, left=0.105, right=0.96, bottom=0.09, top=0.94,
                            wspace=0.42, hspace=0.63, height_ratios=[1.25, 0.75])
     heat_axis = fig.add_subplot(grid[0, 0])
     lodo_grid = grid[0, 1].subgridspec(1, 3, wspace=0.42)
@@ -1160,7 +1160,7 @@ def extended_data4(corridors, nodes):
         ))
         axis.text(0.05, 0.92, textwrap.fill(str(row.display_label), 42), transform=axis.transAxes,
                   fontsize=8, fontweight="bold", va="top")
-        axis.text(0.05, 0.81, "Journal examples selected without using citation outcomes",
+        axis.text(0.05, 0.81, "Journals selected without citation outcomes",
                   transform=axis.transAxes, fontsize=5.5, color=MID_GRAY, va="top")
         panel_label(axis, label, x=0.00, y=0.99)
 
