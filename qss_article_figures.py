@@ -27,8 +27,6 @@ SOURCE_DATA = FIGURES / "source_data"
 SCOPE = V2_WORK / "journal_year_scope.parquet"
 SCORES = V3_WORK / "routing_scores.parquet"
 V2_ARTIFACTS = ARTIFACTS.parent / "qss_v2"
-NEWS_ESTIMATES = RESULTS / "news_estimates.csv"
-NEWS_GATES = RESULTS / "news_gates.csv"
 CASE_SELECTION = RESULTS / "case_selection.csv"
 CORRIDORS = RESULTS / "journal_corridors.csv"
 
@@ -77,7 +75,7 @@ NODE_LABEL_OFFSETS = {
 SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
     "SourceData_Figure3_nodes.csv", "SourceData_Figure3_edges.csv",
-    "SourceData_Figure3_metrics.csv", "SourceData_Figure3_web.csv",
+    "SourceData_Figure3_metrics.csv",
     "SourceData_Figure4_estimates.csv", "SourceData_Figure4_same_author.csv",
     "SourceData_ED1_cohort_coverage.csv", "SourceData_ED2_balance.csv",
     "SourceData_ED2_propensity_candidates.csv", "SourceData_ED2_propensity_bins.csv",
@@ -268,29 +266,6 @@ def validate_network(nodes, edges, metrics, lodo):
         raise ValueError("standardized network differences do not reconcile")
 
 
-def validate_news(news, gates):
-    require_finite(
-        news, "tracked-web estimates",
-        ["mean_broad", "mean_narrower", "estimate", "se", "ci_low", "ci_high",
-         "bootstrap_ci_low", "bootstrap_ci_high", "n", "journals"],
-    )
-    promoted = gates.loc[gates.gate.eq("promote_to_main_text"), "passed"]
-    if len(promoted) != 1 or not bool(bool_column(promoted, "news promotion gate").iloc[0]):
-        raise ValueError("Figure 3 requires news_gates promote_to_main_text=true")
-    overall = news[
-        news.period.astype(str).eq("all")
-        & news.scale.eq("absolute_difference")
-        & news.outcome.isin(["any_web_5cy", "web_pages_5cy"])
-    ].copy()
-    if len(overall) != 2 or set(overall.outcome) != {"any_web_5cy", "web_pages_5cy"}:
-        raise ValueError(f"expected two promoted overall tracked-web estimates, got {len(overall)}")
-    if (overall.ci_low > overall.estimate).any() or (overall.ci_high < overall.estimate).any():
-        raise ValueError("tracked-web analytic confidence interval does not contain estimate")
-    if (overall[["mean_broad", "mean_narrower"]] < 0).any().any():
-        raise ValueError("expected nonnegative tracked-web marginal means")
-    return overall.set_index("outcome").loc[["any_web_5cy", "web_pages_5cy"]].reset_index()
-
-
 def validate_corridors(selection, corridors):
     required = [
         "case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
@@ -371,12 +346,6 @@ def read_inputs():
         ["author_role", "strata", "authors", "papers", "theta",
          "bootstrap_ci_low", "bootstrap_ci_high", "bootstrap_draws"],
     )
-    news = load_csv(
-        NEWS_ESTIMATES,
-        ["outcome", "period", "scale", "mean_broad", "mean_narrower", "estimate",
-         "se", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high", "n", "journals"],
-    )
-    news_gates = load_csv(NEWS_GATES, ["gate", "passed"])
     selection = load_csv(
         CASE_SELECTION,
         ["case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
@@ -404,10 +373,9 @@ def read_inputs():
     nodes = nodes.merge(labels[["qwen_macro", "display_label"]], on="qwen_macro",
                         validate="one_to_one")
     validate_network(nodes, edges, metrics, lodo)
-    news = validate_news(news, news_gates)
     validate_corridors(selection, corridors)
     return (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-            same_journal, dynamics, same_author, news, selection, corridors)
+            same_journal, dynamics, same_author, selection, corridors)
 
 
 def estimate_row(estimates, analysis, outcome):
@@ -796,32 +764,15 @@ def draw_network(axis, nodes, edges):
                 ncol=1, fontsize=5.5, handlelength=1.5)
 
 
-def news_source_data(news):
-    labels = {
-        "any_web_5cy": "Papers with at least one tracked page",
-        "web_pages_5cy": "Unique tracked pages",
-    }
-    source = news.copy()
-    source.insert(1, "measure", source.outcome.map(labels))
-    for name in ("mean_broad", "mean_narrower", "estimate", "ci_low", "ci_high"):
-        source[f"{name}_per_1000"] = 1000 * source[name].astype(float)
-    return source[[
-        "outcome", "measure", "mean_broad_per_1000", "mean_narrower_per_1000",
-        "estimate_per_1000", "ci_low_per_1000", "ci_high_per_1000", "n", "journals",
-    ]]
-
-
-def figure3_network_web(nodes, edges, metrics, news):
-    fig = plt.figure(figsize=(MAIN_WIDTH, 4.25))
+def figure3_network(nodes, edges, metrics):
+    fig = plt.figure(figsize=(MAIN_WIDTH, 3.35))
     grid = fig.add_gridspec(
-        2, 2, width_ratios=[1.28, 1], height_ratios=[0.72, 1],
-        left=0.055, right=0.97, bottom=0.14, top=0.94, wspace=0.34, hspace=0.76,
+        1, 2, width_ratios=[1.42, 1],
+        left=0.055, right=0.97, bottom=0.16, top=0.92, wspace=0.34,
     )
-    network_axis = fig.add_subplot(grid[:, 0])
-    metric_grid = grid[0, 1].subgridspec(1, 3, wspace=0.42)
-    metric_axes = [fig.add_subplot(metric_grid[0, index]) for index in range(3)]
-    web_grid = grid[1, 1].subgridspec(1, 2, width_ratios=[1.10, 0.90], wspace=0.48)
-    mean_axis, difference_axis = [fig.add_subplot(web_grid[0, index]) for index in range(2)]
+    network_axis = fig.add_subplot(grid[0, 0])
+    metric_grid = grid[0, 1].subgridspec(3, 1, hspace=0.72)
+    metric_axes = [fig.add_subplot(metric_grid[index, 0]) for index in range(3)]
 
     draw_network(network_axis, nodes, edges)
     panel_label(network_axis, "a", x=-0.07)
@@ -832,46 +783,12 @@ def figure3_network_web(nodes, edges, metrics, news):
     indexed = metrics.set_index("metric")
     for axis, metric, title in zip(metric_axes, ordered_metrics, short):
         metric_axis(axis, indexed.loc[metric], title)
-    metric_axes[0].text(-0.32, 1.28, "b", transform=metric_axes[0].transAxes,
+    metric_axes[0].text(-0.20, 1.40, "b", transform=metric_axes[0].transAxes,
                         fontsize=8, fontweight="bold")
-    metric_axes[1].text(0.5, 1.28, "Three views of citation concentration",
-                        transform=metric_axes[1].transAxes,
-                        ha="center", fontsize=7)
+    metric_axes[0].text(0.5, 1.40, "Three views of citation concentration",
+                        transform=metric_axes[0].transAxes, ha="center", fontsize=7)
     for axis in metric_axes:
-        axis.set_xlabel("Narrower − broader\n(×100)", fontsize=5.5)
-
-    source = news_source_data(news)
-    y = np.arange(len(source))[::-1]
-    broad = source.mean_broad_per_1000.to_numpy(dtype=float)
-    narrow = source.mean_narrower_per_1000.to_numpy(dtype=float)
-    for index, yi in enumerate(y):
-        mean_axis.plot([broad[index], narrow[index]], [yi, yi], color=LIGHT_GRAY, lw=1.2)
-        mean_axis.scatter(broad[index], yi, color=SKY, s=19, zorder=2)
-        mean_axis.scatter(narrow[index], yi, color=CORAL, marker="s", s=18, zorder=2)
-    mean_axis.set_yticks(y, ["Any tracked\npage", "Tracked\npages"])
-    mean_axis.set(xlabel="Per 1,000 papers", title="Adjusted means")
-    mean_axis.legend(handles=[
-        plt.Line2D([], [], marker="o", color="none", markerfacecolor=SKY,
-                   markeredgecolor=SKY, label="Broader scope"),
-        plt.Line2D([], [], marker="s", color="none", markerfacecolor=CORAL,
-                   markeredgecolor=CORAL, label="Narrower scope"),
-    ], frameon=False, fontsize=5.5, loc="lower right")
-
-    point = source.estimate_per_1000.to_numpy(dtype=float)
-    low = source.ci_low_per_1000.to_numpy(dtype=float)
-    high = source.ci_high_per_1000.to_numpy(dtype=float)
-    difference_axis.axvline(0, color=INK, lw=0.6)
-    difference_axis.errorbar(
-        point, y, xerr=np.vstack([point - low, high - point]), fmt="o", color=CORAL,
-        ms=3.5, capsize=1.5, lw=0.8,
-    )
-    difference_axis.set_yticks(y, ["Any", "Count"])
-    difference_axis.set(xlabel="Difference per 1,000\n(narrower − broader)",
-                        title="Adjusted differences")
-    mean_axis.text(-0.28, 1.18, "c", transform=mean_axis.transAxes,
-                   fontsize=8, fontweight="bold")
-    mean_axis.text(1.0, 1.18, "Tracked news, blog and web pages", transform=mean_axis.transAxes,
-                   ha="center", fontsize=7)
+        axis.set_xlabel("Narrower − broader (×100)", fontsize=5.5)
     return save(fig, "figure3_network")
 
 
@@ -1314,7 +1231,7 @@ def main():
         "SourceData_Figure4_metrics.csv", "SourceData_Figure4_lodo.csv",
         "SourceData_Figure4_tests.csv", "SourceData_Figure3_lodo.csv",
         "SourceData_ED4_subgroups.csv", "SourceData_ED4_tests.csv",
-        "SourceData_ED4_domain_labels.csv",
+        "SourceData_ED4_domain_labels.csv", "SourceData_Figure3_web.csv",
     ]
     for name in SOURCE_FILES + stale_sources + ["source_data_manifest.csv"]:
         path = SOURCE_DATA / name
@@ -1323,7 +1240,7 @@ def main():
     style()
 
     (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-     same_journal, dynamics, same_author, news, selection, corridors) = read_inputs()
+     same_journal, dynamics, same_author, selection, corridors) = read_inputs()
     manifests = {
         "v2_exposure": load_json(V2_ARTIFACTS / "run_exposure.json"),
         "v2_dirty": load_json(V2_ARTIFACTS / "run_dirty_analyze.json"),
@@ -1331,7 +1248,6 @@ def main():
         "v3_analyze": load_json(ARTIFACTS / "run_analyze.json"),
         "downstream": load_json(ARTIFACTS / "run_downstream.json"),
         "network": load_json(ARTIFACTS / "run_network.json"),
-        "news": load_json(ARTIFACTS / "run_news.json"),
         "cases": load_json(ARTIFACTS / "run_cases.json"),
     }
     actual_selection_hash = hashlib.sha256(CASE_SELECTION.read_bytes()).hexdigest()
@@ -1339,8 +1255,6 @@ def main():
     if cases_extra.get("selection_sha256") != actual_selection_hash \
             or cases_extra.get("selection_used_pre_outcome_columns_only") is not True:
         raise ValueError("case-selection hash or outcome-blind manifest assertion failed")
-    if manifests["news"].get("extra", {}).get("promote_to_main_text") is not True:
-        raise ValueError("Figure 3 requires run_news promote_to_main_text=true")
     network_counts = manifests["network"]["counts"]
     expected_network_counts = {
         "nodes": 32, "edge_cells": 1024, "bootstrap_draws": 500,
@@ -1369,7 +1283,7 @@ def main():
                  "results/qss_v3/dirty_estimates.csv")
     write_source("SourceData_Figure4_same_author.csv", same_author,
                  "Figure 4", "b", "results/qss_v3/same_author_sensitivity.csv")
-    paths += figure3_network_web(nodes, edges, metrics, news)
+    paths += figure3_network(nodes, edges, metrics)
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
     source_edges = edges.rename(columns={
@@ -1393,9 +1307,6 @@ def main():
                  "results/qss_v3/network_edges.csv")
     write_source("SourceData_Figure3_metrics.csv", metrics, "Figure 3", "b",
                  "results/qss_v3/network_metrics.csv")
-    write_source("SourceData_Figure3_web.csv", news_source_data(news), "Figure 3", "c",
-                 "results/qss_v3/news_estimates.csv;results/qss_v3/news_gates.csv")
-
     ed1 = ed1_data(
         manifests["v2_dirty"], manifests["v3_prepare"], manifests["v3_analyze"],
         manifests["network"],
@@ -1439,8 +1350,8 @@ def main():
     ], "Extended Data Figure 4", "a-d", "results/qss_v3/network_nodes.csv")
 
     manifest = pd.DataFrame(source_records).sort_values(["figure/panel", "source_file"])
-    if len(manifest) != 17 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 17:
-        raise ValueError(f"expected 17 hashed source-data files, got {len(manifest)}")
+    if len(manifest) != 16 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 16:
+        raise ValueError(f"expected 16 hashed source-data files, got {len(manifest)}")
     manifest.to_csv(SOURCE_DATA / "source_data_manifest.csv", index=False)
     if len(paths) != 16 or len(list(FIGURES.glob("*.pdf"))) != 8 \
             or len(list(FIGURES.glob("*.png"))) != 8:
