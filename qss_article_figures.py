@@ -765,13 +765,13 @@ def draw_network(axis, nodes, edges):
 
 
 def figure3_network(nodes, edges, metrics):
-    fig = plt.figure(figsize=(MAIN_WIDTH, 3.35))
+    fig = plt.figure(figsize=(MAIN_WIDTH, 3.55))
     grid = fig.add_gridspec(
         1, 2, width_ratios=[1.42, 1],
-        left=0.055, right=0.97, bottom=0.16, top=0.92, wspace=0.34,
+        left=0.055, right=0.97, bottom=0.16, top=0.84, wspace=0.34,
     )
     network_axis = fig.add_subplot(grid[0, 0])
-    metric_grid = grid[0, 1].subgridspec(3, 1, hspace=0.72)
+    metric_grid = grid[0, 1].subgridspec(3, 1, hspace=1.05)
     metric_axes = [fig.add_subplot(metric_grid[index, 0]) for index in range(3)]
 
     draw_network(network_axis, nodes, edges)
@@ -783,12 +783,10 @@ def figure3_network(nodes, edges, metrics):
     indexed = metrics.set_index("metric")
     for axis, metric, title in zip(metric_axes, ordered_metrics, short):
         metric_axis(axis, indexed.loc[metric], title)
-    metric_axes[0].text(-0.20, 1.40, "b", transform=metric_axes[0].transAxes,
-                        fontsize=8, fontweight="bold")
-    metric_axes[0].text(0.5, 1.40, "Three views of citation concentration",
-                        transform=metric_axes[0].transAxes, ha="center", fontsize=7)
-    for axis in metric_axes:
-        axis.set_xlabel("Narrower − broader (×100)", fontsize=5.5)
+    fig.text(0.585, 0.93, "b", fontsize=8, fontweight="bold")
+    fig.text(0.78, 0.93, "Three views of citation concentration",
+             ha="center", fontsize=7)
+    metric_axes[-1].set_xlabel("Narrower − broader (×100)", fontsize=5.5)
     return save(fig, "figure3_network")
 
 
