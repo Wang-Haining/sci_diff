@@ -69,7 +69,7 @@ FIGURE_NAMES = [
     "extended_data_figure3_sensitivities", "extended_data_figure4_heterogeneity",
 ]
 NODE_LABEL_OFFSETS = {
-    4: (-24, 10), 7: (13, 0), 8: (-8, 10), 9: (-17, -7),
+    4: (0, 22), 7: (13, 0), 8: (-8, 10), 9: (-17, -7),
     12: (17, 8), 18: (-28, -8), 30: (28, -12), 31: (-15, 6),
 }
 SOURCE_FILES = [
