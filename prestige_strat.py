@@ -173,19 +173,19 @@ def weighted_spearman(table):
 def task1(con):
     journal_years = con.execute("""
       WITH all_rows AS (
-        SELECT 'eligible' sample,publication_year,journal_id,
+        SELECT 'eligible' AS sample_name,publication_year,journal_id,
           any_value(semantic_title_similarity) semantic_title_similarity,
           any_value(prior_prestige) prior_prestige,
           count(DISTINCT semantic_title_similarity) n_scope,
           count(DISTINCT prior_prestige) n_prestige
         FROM analysis GROUP BY publication_year,journal_id
         UNION ALL
-        SELECT 'comparison' sample,publication_year,journal_id,
+        SELECT 'comparison' AS sample_name,publication_year,journal_id,
           any_value(semantic_title_similarity),any_value(prior_prestige),
           count(DISTINCT semantic_title_similarity),count(DISTINCT prior_prestige)
         FROM comparison GROUP BY publication_year,journal_id
       ) SELECT * FROM all_rows
-    """).df()
+    """).df().rename(columns={"sample_name": "sample"})
     if ((journal_years.n_scope != 1) | (journal_years.n_prestige != 1)).any():
         raise ValueError("journal-year scope/prestige was not unique")
     journal_years["log1p_prior_prestige"] = np.log1p(journal_years.prior_prestige)
@@ -199,29 +199,29 @@ def task1(con):
         })
 
     choice_journals = con.execute("""
-      SELECT 'eligible' sample,choice_set_id,journal_id,
+      SELECT 'eligible' AS sample_name,choice_set_id,journal_id,
         any_value(semantic_title_similarity) semantic_title_similarity,
         ln(1+any_value(prior_prestige)) log1p_prior_prestige,count(*) n
       FROM analysis GROUP BY choice_set_id,journal_id
       UNION ALL
-      SELECT 'comparison',choice_set_id,journal_id,
+      SELECT 'comparison' AS sample_name,choice_set_id,journal_id,
         any_value(semantic_title_similarity),ln(1+any_value(prior_prestige)),count(*)
       FROM comparison GROUP BY choice_set_id,journal_id
-    """).df()
+    """).df().rename(columns={"sample_name": "sample"})
     output.extend(weighted_spearman(choice_journals))
 
     quartiles = con.execute("""
-      SELECT 'eligible' sample,a.treatment,q.prestige_quartile,count(*) n,
+      SELECT 'eligible' AS sample_name,a.treatment,q.prestige_quartile,count(*) n,
         count(DISTINCT a.journal_id) journals,sum(a.near) near_events,
         sum(a.far) far_events
       FROM analysis a JOIN prestige_quartiles q
         USING (choice_set_id,journal_id,treatment)
       GROUP BY a.treatment,q.prestige_quartile
       UNION ALL
-      SELECT 'comparison',treatment,prestige_quartile,count(*),
+      SELECT 'comparison' AS sample_name,treatment,prestige_quartile,count(*),
         count(DISTINCT journal_id),sum(near),sum(far)
       FROM comparison GROUP BY treatment,prestige_quartile
-    """).df()
+    """).df().rename(columns={"sample_name": "sample"})
     quartiles["row_proportion"] = quartiles.n / quartiles.groupby(
         ["sample", "treatment"], observed=True).n.transform("sum")
     for row in quartiles.to_dict("records"):
@@ -255,14 +255,14 @@ def task1(con):
     """)
     ventiles = con.execute("""
       WITH joined AS (
-        SELECT 'eligible' sample,a.treatment,v.scope_ventile,v.prestige_ventile
+        SELECT 'eligible' AS sample_name,a.treatment,v.scope_ventile,v.prestige_ventile
         FROM analysis a JOIN journal_year_ventiles v USING (publication_year,journal_id)
         UNION ALL
-        SELECT 'comparison',a.treatment,v.scope_ventile,v.prestige_ventile
+        SELECT 'comparison' AS sample_name,a.treatment,v.scope_ventile,v.prestige_ventile
         FROM comparison a JOIN journal_year_ventiles v USING (publication_year,journal_id)
-      ) SELECT sample,treatment,scope_ventile,prestige_ventile,count(*) n
+      ) SELECT sample_name,treatment,scope_ventile,prestige_ventile,count(*) n
       FROM joined GROUP BY ALL
-    """).df()
+    """).df().rename(columns={"sample_name": "sample"})
     ventiles["share"] = ventiles.n / ventiles.groupby(
         ["sample", "treatment"], observed=True).n.transform("sum")
     for row in ventiles.to_dict("records"):
