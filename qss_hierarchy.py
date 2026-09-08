@@ -259,10 +259,14 @@ def main():
     years = pd.read_csv(RESULTS / "subgroup_estimates.csv")
     years = years.loc[years.test.eq("publication_year")].sort_values("order").copy()
     tests = pd.read_csv(RESULTS / "subgroup_tests.csv")
+    global_p = float(tests.loc[tests.test.eq("publication_year_global"), "p_value"].iloc[0])
+    trend_p = float(tests.loc[tests.test.eq("publication_year_linear_trend"), "p_value"].iloc[0])
     years.assign(
         ratio_change_percent=100 * np.expm1(years.estimate),
         ratio_ci_low_percent=100 * np.expm1(years.ci_low),
         ratio_ci_high_percent=100 * np.expm1(years.ci_high),
+        year_heterogeneity_p=global_p,
+        linear_trend_p=trend_p,
     ).to_csv(YEAR_SOURCE, index=False)
 
     style()

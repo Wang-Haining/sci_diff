@@ -1289,10 +1289,10 @@ def main():
                  "results/qss_v3/dirty_estimates.csv")
     figure3_source, new_paths = figure3(estimates, same_author)
     paths += new_paths
-    write_source("SourceData_Figure4_estimates.csv", figure3_source, "Figure 4", "a",
+    write_source("SourceData_Figure4_estimates.csv", figure3_source, "Supplementary Figure S4", "a",
                  "results/qss_v3/dirty_estimates.csv")
     write_source("SourceData_Figure4_same_author.csv", same_author,
-                 "Figure 4", "b", "results/qss_v3/same_author_sensitivity.csv")
+                 "Supplementary Figure S4", "b", "results/qss_v3/same_author_sensitivity.csv")
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
     source_edges = edges.rename(columns={
@@ -1334,28 +1334,28 @@ def main():
         manifests["network"],
     )
     paths += extended_data1(ed1)
-    write_source("SourceData_ED1_cohort_coverage.csv", ed1, "Extended Data Figure 1", "a-d",
+    write_source("SourceData_ED1_cohort_coverage.csv", ed1, "Supplementary Figure S1", "a-d",
                  "artifacts/qss_v2/run_dirty_analyze.json;artifacts/qss_v3/run_prepare.json;"
                  "artifacts/qss_v3/run_analyze.json;artifacts/qss_v3/run_network.json")
     bins = propensity_bins(con)
     balance, candidates = diagnostics_data()
     paths += extended_data2(bins, balance, candidates)
-    write_source("SourceData_ED2_balance.csv", balance, "Extended Data Figure 2", "c",
+    write_source("SourceData_ED2_balance.csv", balance, "Supplementary Figure S2", "c",
                  "results/qss_v3/balance.csv;results/qss_v3/downstream_balance.csv")
     write_source("SourceData_ED2_propensity_candidates.csv", candidates,
-                 "Extended Data Figure 2", "b,d",
+                 "Supplementary Figure S2", "b,d",
                  "results/qss_v3/propensity_candidates.csv;results/qss_v3/downstream_propensity.csv")
-    write_source("SourceData_ED2_propensity_bins.csv", bins, "Extended Data Figure 2", "a",
+    write_source("SourceData_ED2_propensity_bins.csv", bins, "Supplementary Figure S2", "a",
                  "qss_v3/routing_scores.parquet")
     sensitivity = sensitivity_data(estimates, dynamics)
     paths += extended_data3(nodes, edges, metrics, lodo, estimates, dynamics)
     write_source("SourceData_ED3_network_edges.csv", source_edges,
-                 "Extended Data Figure 3", "a", "results/qss_v3/network_edges.csv")
+                 "Supplementary Figure S3", "a", "results/qss_v3/network_edges.csv")
     write_source("SourceData_ED3_lodo.csv", source_lodo,
-                 "Extended Data Figure 3", "b",
+                 "Supplementary Figure S3", "b",
                  "results/qss_v3/network_leave_one_domain_out.csv")
     write_source("SourceData_ED3_sensitivities.csv", sensitivity,
-                 "Extended Data Figure 3", "c-d",
+                 "Supplementary Figure S3", "c-d",
                  "results/qss_v3/dirty_estimates.csv;results/qss_v3/citation_dynamics.csv")
     paths += extended_data4(corridors, nodes)
     corridor_columns = [
@@ -1365,11 +1365,11 @@ def main():
         "routing_ci_low_percent", "routing_ci_high_percent", "subgroup_n", "journals",
     ]
     write_source("SourceData_ED4_corridors.csv", corridors[corridor_columns],
-                 "Extended Data Figure 4", "a-d",
+                 "Supplementary Figure S5", "a-d",
                  "results/qss_v3/case_selection.csv;results/qss_v3/journal_corridors.csv")
     write_source("SourceData_ED4_nodes.csv", source_nodes[
         ["internal_domain_id", "display_label", "mds_x", "mds_y", "source_share"]
-    ], "Extended Data Figure 4", "a-d", "results/qss_v3/network_nodes.csv")
+    ], "Supplementary Figure S5", "a-d", "results/qss_v3/network_nodes.csv")
 
     manifest = pd.DataFrame(source_records).sort_values(["figure/panel", "source_file"])
     if len(manifest) != 16 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 16:
