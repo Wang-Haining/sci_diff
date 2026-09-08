@@ -73,10 +73,10 @@ def draw_network_metrics(panel, metrics):
     panel.set(xlim=(0, 1), ylim=(0, 1))
     panel.text(0.02, 0.98, "The same pattern across the network", fontsize=7,
                fontweight="bold", va="top")
-    panel.scatter([0.05, 0.26], [0.905, 0.905], s=18, color=[BLUE, CORAL],
+    panel.scatter([0.05, 0.40], [0.905, 0.905], s=18, color=[BLUE, CORAL],
                   edgecolor=WHITE, lw=0.35)
     panel.text(0.085, 0.905, "broader-scope", va="center", fontsize=4.9)
-    panel.text(0.295, 0.905, "narrower-scope", va="center", fontsize=4.9)
+    panel.text(0.435, 0.905, "narrower-scope", va="center", fontsize=4.9)
     panel.text(0.82, 0.905, "difference (95% CI)", va="center", ha="center",
                fontsize=4.9, color=MID_GRAY)
 

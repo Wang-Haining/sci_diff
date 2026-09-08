@@ -96,8 +96,8 @@ def draw_primary_results(axis, estimates):
               f"Overall citations: {total.mean_broad:.2f} vs {total.mean_specialized:.2f}; "
               f"difference {total.estimate:.2f} (95% CI {total.ci_low:.2f} to {total.ci_high:.2f}).\n"
               f"Any other-area citation: {100 * any_other.mean_broad:.1f}% vs "
-              f"{100 * any_other.mean_specialized:.1f}%.",
-              fontsize=4.6, color=MID_GRAY, va="bottom", linespacing=1.25)
+              f"{100 * any_other.mean_specialized:.1f}%. Other citation origins remain in total counts.",
+              fontsize=4.5, color=MID_GRAY, va="bottom", linespacing=1.25)
 
 
 def draw_year_results(ratio_axis, effect_axis, years, tests):
@@ -119,8 +119,8 @@ def draw_year_results(ratio_axis, effect_axis, years, tests):
                         fontsize=4.5, color=COLORS[0])
         ratio_axis.text(n - 0.010, yy, f"{n:.2f}", va="center", ha="right",
                         fontsize=4.5, color=COLORS[1])
-    ratio_axis.set(yticks=y, yticklabels=years.level.astype(int), xlim=(1.17, 1.64),
-                   xlabel="Other-area citations per same-topic citation")
+    ratio_axis.set(yticks=y, yticklabels=years.level.astype(int), xlim=(1.17, 1.64))
+    ratio_axis.set_xlabel("Other-area citations per\nsame-topic citation", fontsize=5.0, labelpad=2)
     ratio_axis.tick_params(axis="y", length=0)
     ratio_axis.legend(frameon=False, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.01),
                       fontsize=4.7, handletextpad=0.25, columnspacing=0.8)
@@ -136,11 +136,12 @@ def draw_year_results(ratio_axis, effect_axis, years, tests):
     for yy, value in zip(y, point):
         effect_axis.text(-24.5, yy, f"{value:.1f}%", ha="left", va="center",
                          fontsize=4.5, color=INK)
-    effect_axis.set(yticks=[], xlim=(-25, 13), xlabel="Narrower vs broader (%)")
+    effect_axis.set(yticks=[], xlim=(-25, 13))
+    effect_axis.set_xlabel("Narrower vs\nbroader (%)", fontsize=5.0, labelpad=2)
     effect_axis.spines[["top", "right", "left"]].set_visible(False)
     global_p = float(tests.loc[tests.test.eq("publication_year_global"), "p_value"].iloc[0])
     trend_p = float(tests.loc[tests.test.eq("publication_year_linear_trend"), "p_value"].iloc[0])
-    effect_axis.text(0.98, -0.37, f"year heterogeneity P={global_p:.3f}; trend P={trend_p:.3f}",
+    effect_axis.text(0.98, 1.18, f"heterogeneity P={global_p:.3f}; trend P={trend_p:.3f}",
                      transform=effect_axis.transAxes, ha="right", fontsize=4.5,
                      color=MID_GRAY)
 
@@ -269,7 +270,7 @@ def main():
     axis = fig.add_subplot(grid[0, 0])
     right = grid[0, 1].subgridspec(2, 1, height_ratios=[1.22, 0.78], hspace=0.24)
     result_axis = fig.add_subplot(right[0, 0])
-    year_grid = right[1, 0].subgridspec(1, 2, width_ratios=[1.30, 0.85], wspace=0.27)
+    year_grid = right[1, 0].subgridspec(1, 2, width_ratios=[1.30, 0.85], wspace=0.38)
     ratio_axis = fig.add_subplot(year_grid[0, 0])
     effect_axis = fig.add_subplot(year_grid[0, 1])
 
@@ -347,7 +348,7 @@ def main():
                     fontsize=7, fontweight="bold", va="bottom")
     fig.text(0.012, 0.965, "a", fontsize=8, fontweight="bold")
     fig.text(0.623, 0.965, "b", fontsize=8, fontweight="bold")
-    fig.text(0.623, 0.425, "c", fontsize=8, fontweight="bold")
+    fig.text(0.603, 0.421, "c", fontsize=8, fontweight="bold")
     fig.savefig(FIGURE.with_suffix(".pdf"), dpi=300, facecolor=WHITE)
     fig.savefig(FIGURE.with_suffix(".png"), dpi=300, facecolor=WHITE)
     plt.close(fig)
