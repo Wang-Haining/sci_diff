@@ -9,9 +9,9 @@ c,99.9% winsorized,ci_low,-0.1282981682733862,results/qss_v3/dirty_estimates.csv
 c,99.9% winsorized,ci_high,-0.0552309102817173,results/qss_v3/dirty_estimates.csv
 c,99.9% winsorized,bootstrap_ci_low,-0.1286392926499515,results/qss_v3/dirty_estimates.csv
 c,99.9% winsorized,bootstrap_ci_high,-0.0522248174999959,results/qss_v3/dirty_estimates.csv
-d,Cross-fitted AIPW,estimate,-0.0057634037078854,results/qss_v3/dirty_estimates.csv
-d,Cross-fitted AIPW,ci_low,-0.0138256413259536,results/qss_v3/dirty_estimates.csv
-d,Cross-fitted AIPW,ci_high,0.0022988339101826,results/qss_v3/dirty_estimates.csv
-d,Fixed-support IPW,estimate,-0.0462083363162971,results/qss_v3/citation_dynamics.csv
-d,Fixed-support IPW,ci_low,-0.0949912861292605,results/qss_v3/citation_dynamics.csv
-d,Fixed-support IPW,ci_high,0.0025746134966662,results/qss_v3/citation_dynamics.csv
+d,Frozen primary,estimate,-0.096748438961938,results/qss_v3/dirty_estimates.csv
+d,Frozen primary,ci_low,-0.144336408333361,results/qss_v3/dirty_estimates.csv
+d,Frozen primary,ci_high,-0.0491604695905151,results/qss_v3/dirty_estimates.csv
+d,Deterministic rerun,estimate,-0.0824527034864641,results/qss_v3/round2_score_diagnostics.csv
+d,Deterministic rerun,ci_low,-0.1282409125520956,results/qss_v3/round2_score_diagnostics.csv
+d,Deterministic rerun,ci_high,-0.0366644944208327,results/qss_v3/round2_score_diagnostics.csv
