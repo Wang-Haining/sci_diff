@@ -7,7 +7,7 @@ import pandas as pd
 import umap
 from matplotlib.patches import FancyArrowPatch
 
-from qss_article_figures import CORAL, INK, LIGHT_GRAY, MID_GRAY, SKY, WHITE, style
+from qss_article_figures import CORAL, INK, LIGHT_GRAY, MID_GRAY, WHITE, style
 from qss_common import SEED
 from qss_v3_common import ARTIFACTS, RESULTS, V2_WORK, V3_WORK, check_budget, connect, log, write_run
 
@@ -20,8 +20,12 @@ JOURNALS = RESULTS / "hierarchy_journals.csv"
 AREAS = RESULTS / "hierarchy_areas.csv"
 EDGES_OUT = RESULTS / "hierarchy_edges.csv"
 PCS = [f"qpc{i:02d}" for i in range(1, 33)]
-GROUPS = {0: "Broader quartile", 1: "Narrower quartile", 2: "Middle 50%"}
-COLORS = {0: SKY, 1: CORAL, 2: "#B9BEC7"}
+GROUPS = {0: "Broader-scope journals", 1: "Narrower-scope journals",
+          2: "Middle 50% (not compared)"}
+COLORS = {0: "#2386B8", 1: CORAL, 2: "#858C96"}
+AREA_LABEL_OFFSETS = {
+    4: (-8, 9), 7: (-5, 11), 8: (-8, -10), 18: (9, 8), 30: (-10, 8), 31: (-8, -11)
+}
 CASES = {
     ("Biotechnology Letters", 4): (-64, 7),
     ("Protein Expression and Purification", 4): (18, -10),
@@ -156,10 +160,12 @@ def main():
         axis.plot([xx[0], xx[0]], [y0[0], y1[0]], color="#BFC4CB", lw=0.35,
                   ls=(0, (2, 3)), alpha=0.42, zorder=0)
 
+    point_style = {2: (0.14, 0.10), 0: (0.20, 0.19), 1: (0.18, 0.13)}
     for group in (2, 0, 1):
         mask = sample.scope_group.eq(group).to_numpy()
-        axis.scatter(px[mask], py[mask], s=0.16 if group == 2 else 0.20,
-                     color=COLORS[group], alpha=0.07 if group == 2 else 0.16,
+        size, alpha = point_style[group]
+        axis.scatter(px[mask], py[mask], s=size,
+                     color=COLORS[group], alpha=alpha,
                      linewidths=0, rasterized=True, zorder=1)
     for group in (0, 1, 2):
         axis.scatter([], [], s=16, color=COLORS[group], alpha=0.9,
@@ -169,7 +175,7 @@ def main():
 
     halo_lo, halo_hi = np.quantile(np.log(journals.reach), [0.05, 0.95])
     halo = 35 + 170 * np.clip((np.log(journals.reach) - halo_lo) / (halo_hi - halo_lo), 0, 1)
-    journal_colors = np.where(journals.treatment.eq(1), CORAL, SKY)
+    journal_colors = np.where(journals.treatment.eq(1), CORAL, COLORS[0])
     axis.scatter(jx, jy, s=halo, c=journal_colors, alpha=0.12, linewidths=0, zorder=2)
     axis.scatter(jx, jy, s=13, c=journal_colors, edgecolors=WHITE, linewidths=0.35, zorder=3)
     for idx, row in journals.iterrows():
@@ -192,14 +198,14 @@ def main():
         axis.add_patch(FancyArrowPatch(start, end, connectionstyle="arc3,rad=0.10",
                        arrowstyle="-|>", mutation_scale=3.2,
                        linewidth=0.15 + 0.70 * abs(row.standardized_share_difference) / shift_max,
-                       color=CORAL if increase else SKY, alpha=0.56,
+                       color=CORAL if increase else COLORS[0], alpha=0.56,
                        linestyle="-" if increase else "--", shrinkA=3, shrinkB=3, zorder=2))
     node_sizes = 9 + 105 * areas.source_share / areas.source_share.max()
     axis.scatter(axx, ayy, s=node_sizes, facecolor=WHITE, edgecolor=INK, linewidth=0.42, zorder=4)
     for row in areas.nlargest(6, "source_share").itertuples():
         index = areas.index[areas.qwen_macro.eq(row.qwen_macro)][0]
-        dx = 7 if axx[index] < 0.52 else -7
-        axis.annotate(row.display_label, (axx[index], ayy[index]), xytext=(dx, 5),
+        dx, dy = AREA_LABEL_OFFSETS[int(row.qwen_macro)]
+        axis.annotate(row.display_label, (axx[index], ayy[index]), xytext=(dx, dy),
                       textcoords="offset points", ha="left" if dx > 0 else "right",
                       fontsize=4.7, color=INK,
                       bbox={"facecolor": WHITE, "edgecolor": "none", "alpha": 0.88, "pad": 0.5})
@@ -213,6 +219,8 @@ def main():
     axis.text(0.01, citation_base + layer_h - 0.025, "Where later citations came from", fontsize=5.2, color=MID_GRAY)
     axis.text(0.01, journal_base + layer_h - 0.025, "Where papers were published", fontsize=5.2, color=MID_GRAY)
     axis.text(0.01, paper_base + layer_h - 0.025, "What each paper studied", fontsize=5.2, color=MID_GRAY)
+    axis.text(0.01, paper_base + layer_h - 0.043, "192,000-paper display sample", fontsize=4.6,
+              color=MID_GRAY)
     axis.annotate("", xy=(-0.015, 0.93), xytext=(-0.015, 0.07),
                   arrowprops={"arrowstyle": "-|>", "lw": 0.55, "color": MID_GRAY})
     axis.text(-0.045, 0.50, "publication and follow-up", rotation=90, ha="center", va="center",
@@ -237,7 +245,8 @@ def main():
         metric_axis.text(0.98, 0.08, f"{direction}: {point:+.2f}", transform=metric_axis.transAxes,
                          ha="right", fontsize=5.0, color=MID_GRAY)
     legend_axis.plot([], [], color=CORAL, lw=1, label="relatively more for narrower-scope papers")
-    legend_axis.plot([], [], color=SKY, lw=1, ls="--", label="relatively more for broader-scope papers")
+    legend_axis.plot([], [], color=COLORS[0], lw=1, ls="--",
+                     label="relatively more for broader-scope papers")
     legend_axis.scatter([], [], s=45, facecolor=CORAL, alpha=0.15, edgecolor="none",
                         label="larger journal halo = broader citation reach")
     legend_axis.legend(frameon=False, loc="upper left", fontsize=5.2, handlelength=1.5)
