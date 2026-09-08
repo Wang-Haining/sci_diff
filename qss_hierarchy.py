@@ -16,6 +16,7 @@ QWEN = V2_WORK / "qwen3_semantics.parquet"
 ANALYSIS = V3_WORK / "analysis_dataset.parquet"
 SCORES = V3_WORK / "routing_scores.parquet"
 PAPER_POINTS = V3_WORK / "hierarchy_papers.parquet"
+PAPER_SOURCE = RESULTS / "hierarchy_papers.csv"
 JOURNALS = RESULTS / "hierarchy_journals.csv"
 AREAS = RESULTS / "hierarchy_areas.csv"
 EDGES_OUT = RESULTS / "hierarchy_edges.csv"
@@ -194,8 +195,9 @@ def main():
     if xy.shape != (192_000, 2) or not np.isfinite(xy).all():
         raise ValueError(f"expected finite UMAP coordinates (192000,2), got {xy.shape}")
     sample[["umap_x", "umap_y"]] = xy
-    sample[["id", "qwen_macro", "journal_id", "scope_group", "umap_x", "umap_y"]].to_parquet(
-        PAPER_POINTS, index=False)
+    paper_columns = ["id", "qwen_macro", "journal_id", "scope_group", "umap_x", "umap_y"]
+    sample[paper_columns].to_parquet(PAPER_POINTS, index=False)
+    sample[paper_columns].to_csv(PAPER_SOURCE, index=False)
 
     means = ",".join(f"avg({p}) AS {p}" for p in PCS)
     case_names = ",".join("'" + name.replace("'", "''") + "'" for name, _ in CASES)
@@ -353,7 +355,7 @@ def main():
     fig.savefig(FIGURE.with_suffix(".png"), dpi=300, facecolor=WHITE)
     plt.close(fig)
 
-    outputs = [PAPER_POINTS, JOURNALS, AREAS, EDGES_OUT, YEAR_SOURCE,
+    outputs = [PAPER_POINTS, PAPER_SOURCE, JOURNALS, AREAS, EDGES_OUT, YEAR_SOURCE,
                FIGURE.with_suffix(".pdf"), FIGURE.with_suffix(".png")]
     for path in outputs:
         if not path.is_file() or path.stat().st_size == 0:

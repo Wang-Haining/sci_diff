@@ -74,8 +74,13 @@ NODE_LABEL_OFFSETS = {
 }
 SOURCE_FILES = [
     "SourceData_Figure1.csv", "SourceData_Figure2.csv",
+    "SourceData_Figure2_Years.csv", "SourceData_Hierarchy_Papers.csv",
+    "SourceData_Hierarchy_Areas.csv", "SourceData_Hierarchy_Edges.csv",
+    "SourceData_Hierarchy_Journals.csv",
     "SourceData_Figure3_nodes.csv", "SourceData_Figure3_edges.csv",
     "SourceData_Figure3_metrics.csv",
+    "SourceData_Radial_AreaOrder.csv", "SourceData_Radial_CitationBackbone.csv",
+    "SourceData_Radial_LeafScope.csv",
     "SourceData_Figure4_estimates.csv", "SourceData_Figure4_same_author.csv",
     "SourceData_ED1_cohort_coverage.csv", "SourceData_ED2_balance.csv",
     "SourceData_ED2_propensity_candidates.csv", "SourceData_ED2_propensity_bins.csv",
@@ -1311,6 +1316,19 @@ def main():
                  "results/qss_v3/network_edges.csv")
     write_source("SourceData_Figure3_metrics.csv", metrics, "Figure 3", "b",
                  "results/qss_v3/network_metrics.csv")
+    redesigned_sources = [
+        ("SourceData_Figure2_Years.csv", "figure2_years.csv", "Figure 2", "c"),
+        ("SourceData_Hierarchy_Papers.csv", "hierarchy_papers.csv", "Figure 2", "a"),
+        ("SourceData_Hierarchy_Areas.csv", "hierarchy_areas.csv", "Figure 2", "a"),
+        ("SourceData_Hierarchy_Edges.csv", "hierarchy_edges.csv", "Figure 2", "a"),
+        ("SourceData_Hierarchy_Journals.csv", "hierarchy_journals.csv", "Figure 2", "a"),
+        ("SourceData_Radial_AreaOrder.csv", "radial_area_order.csv", "Figure 3", "a"),
+        ("SourceData_Radial_CitationBackbone.csv", "radial_citation_backbone.csv", "Figure 3", "a"),
+        ("SourceData_Radial_LeafScope.csv", "radial_leaf_scope.csv", "Figure 3", "a"),
+    ]
+    for source_name, result_name, figure_name, panel_name in redesigned_sources:
+        write_source(source_name, pd.read_csv(RESULTS / result_name), figure_name, panel_name,
+                     f"results/qss_v3/{result_name}")
     ed1 = ed1_data(
         manifests["v2_dirty"], manifests["v3_prepare"], manifests["v3_analyze"],
         manifests["network"],
