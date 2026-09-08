@@ -1,0 +1,32 @@
+{
+  "design": "qss_v3",
+  "stage": "umap",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "f7efdff6c3131758232d1cf8c1c188a2dffbd18c",
+  "timestamp_utc": "2026-09-08T03:34:49.312325+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0",
+    "umap-learn": "0.5.12"
+  },
+  "counts": {
+    "papers": 192000,
+    "journal_markers": 74,
+    "areas": 32
+  },
+  "extra": {
+    "supervision": "qwen_macro only",
+    "target_weight": 0.15,
+    "paper_sample_per_area": 6000,
+    "group_free_bytes": 2282026434560
+  }
+}
