@@ -342,9 +342,9 @@ def read_inputs():
         RESULTS / "same_journal_sensitivity.csv",
         ["estimand", "estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"],
     )
-    dynamics = load_csv(
-        RESULTS / "citation_dynamics.csv",
-        ["horizon_months", "outcome", "specialized_minus_broad", "ci_low", "ci_high"],
+    rerun = load_csv(
+        RESULTS / "round2_score_diagnostics.csv",
+        ["population", "estimator", "estimate", "ci_low", "ci_high"],
     )
     same_author = load_csv(
         RESULTS / "same_author_sensitivity.csv",
@@ -366,13 +366,12 @@ def read_inputs():
     )
     require_finite(same_journal, "same-journal sensitivity",
                    ["estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"])
-    require_finite(dynamics, "citation dynamics",
-                   ["horizon_months", "specialized_minus_broad", "ci_low", "ci_high"])
+    require_finite(rerun, "deterministic rerun", ["estimate", "ci_low", "ci_high"])
     require_finite(same_author, "same-author sensitivity",
                    ["strata", "authors", "papers", "theta",
                     "bootstrap_ci_low", "bootstrap_ci_high", "bootstrap_draws"])
     if set(same_journal.estimand) != {"external", "inclusive", "inclusive_minus_external"} \
-            or len(dynamics) != 15 or set(same_author.author_role) != {"first", "last"}:
+            or len(rerun) != 4 or set(same_author.author_role) != {"first", "last"}:
         raise ValueError("unexpected sensitivity-analysis rows")
     validate_subgroups(subgroups, tests, labels)
     nodes = nodes.merge(labels[["qwen_macro", "display_label"]], on="qwen_macro",
@@ -380,7 +379,7 @@ def read_inputs():
     validate_network(nodes, edges, metrics, lodo)
     validate_corridors(selection, corridors)
     return (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-            same_journal, dynamics, same_author, selection, corridors)
+            same_journal, rerun, same_author, selection, corridors)
 
 
 def estimate_row(estimates, analysis, outcome):
@@ -1030,7 +1029,7 @@ def extended_data2(bins, balance, candidates):
     return save(fig, "extended_data_figure2_diagnostics")
 
 
-def sensitivity_data(estimates, dynamics):
+def sensitivity_data(estimates, rerun):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     winsor = estimate_row(estimates, "primary", "far_to_near_routing_winsorized")
     rows = []
@@ -1043,22 +1042,20 @@ def sensitivity_data(estimates, dynamics):
         for statistic in ("estimate", "ci_low", "ci_high", "bootstrap_ci_low", "bootstrap_ci_high"):
             add("c", item, statistic, row[statistic],
                 "results/qss_v3/dirty_estimates.csv")
-    any_far = estimate_row(estimates, "primary", "any_far")
-    for statistic in ("estimate", "ci_low", "ci_high"):
-        add("d", "Cross-fitted AIPW", statistic, any_far[statistic],
-            "results/qss_v3/dirty_estimates.csv")
-    ipw_any = dynamics[(dynamics.horizon_months == 60) & dynamics.outcome.eq("any_distant")]
-    if len(ipw_any) != 1:
-        raise ValueError(f"expected one 60-month IPW any-distant row, got {len(ipw_any)}")
-    ipw_any = ipw_any.iloc[0]
-    for source, statistic in (("specialized_minus_broad", "estimate"),
-                              ("ci_low", "ci_low"), ("ci_high", "ci_high")):
-        add("d", "Fixed-support IPW", statistic, ipw_any[source],
-            "results/qss_v3/citation_dynamics.csv")
+    deterministic = rerun[(rerun.population.eq("all_support")) & rerun.estimator.eq("aipw")]
+    if len(deterministic) != 1:
+        raise ValueError(f"expected one deterministic all-support AIPW row, got {len(deterministic)}")
+    deterministic = deterministic.iloc[0]
+    for item, row, origin in (
+            ("Frozen primary", primary, "results/qss_v3/dirty_estimates.csv"),
+            ("Deterministic rerun", deterministic,
+             "results/qss_v3/round2_score_diagnostics.csv")):
+        for statistic in ("estimate", "ci_low", "ci_high"):
+            add("d", item, statistic, row[statistic], origin)
     return pd.DataFrame(rows)
 
 
-def extended_data3(nodes, edges, metrics, lodo, estimates, dynamics):
+def extended_data3(nodes, edges, metrics, lodo, estimates, rerun):
     primary = estimate_row(estimates, "primary", "far_to_near_routing")
     winsor = estimate_row(estimates, "primary", "far_to_near_routing_winsorized")
     fig = plt.figure(figsize=(MAIN_WIDTH, 5.45))
@@ -1109,16 +1106,14 @@ def extended_data3(nodes, edges, metrics, lodo, estimates, dynamics):
     winsor_axis.set(xlabel="Other-area / same-topic ratio change (%)",
                     title="High-citation papers do not explain the result")
 
-    any_far = estimate_row(estimates, "primary", "any_far")
-    ipw_any = dynamics[(dynamics.horizon_months == 60) & dynamics.outcome.eq("any_distant")]
-    if len(ipw_any) != 1:
-        raise ValueError(f"expected one 60-month IPW any-distant row, got {len(ipw_any)}")
-    ipw_any = ipw_any.rename(columns={"specialized_minus_broad": "estimate"})
-    any_models = pd.concat([pd.DataFrame([any_far]), ipw_any], ignore_index=True)
-    forest(model_axis, any_models, ["Cross-fitted AIPW", "Fixed-support IPW"],
-           colors=[CORAL, NAVY], transform=lambda values: 100 * np.asarray(values, dtype=float))
-    model_axis.set(xlabel="Narrower minus broader (percentage points)",
-                   title="Any citation from another area at 60 months")
+    deterministic = rerun[(rerun.population.eq("all_support")) & rerun.estimator.eq("aipw")]
+    if len(deterministic) != 1:
+        raise ValueError(f"expected one deterministic all-support AIPW row, got {len(deterministic)}")
+    comparison = pd.concat([pd.DataFrame([primary]), deterministic], ignore_index=True)
+    forest(model_axis, comparison, ["Frozen primary", "Deterministic rerun"],
+           colors=[CORAL, NAVY], transform=percent_ratio)
+    model_axis.set(xlabel="Other-area / same-topic ratio change (%)",
+                   title="Deterministic rerun preserved the direction")
     panel_label(heat_axis, "a", x=-0.16)
     panel_label(winsor_axis, "c", x=-0.14)
     panel_label(model_axis, "d", x=-0.14)
@@ -1246,7 +1241,7 @@ def main():
     style()
 
     (estimates, subgroups, tests, labels, nodes, edges, metrics, lodo,
-     same_journal, dynamics, same_author, selection, corridors) = read_inputs()
+     same_journal, rerun, same_author, selection, corridors) = read_inputs()
     manifests = {
         "v2_exposure": load_json(V2_ARTIFACTS / "run_exposure.json"),
         "v2_dirty": load_json(V2_ARTIFACTS / "run_dirty_analyze.json"),
@@ -1352,8 +1347,8 @@ def main():
                  "results/qss_v3/propensity_candidates.csv;results/qss_v3/downstream_propensity.csv")
     write_source("SourceData_ED2_propensity_bins.csv", bins, "Supplementary Figure S2", "a",
                  "qss_v3/routing_scores.parquet")
-    sensitivity = sensitivity_data(estimates, dynamics)
-    paths += extended_data3(nodes, edges, metrics, lodo, estimates, dynamics)
+    sensitivity = sensitivity_data(estimates, rerun)
+    paths += extended_data3(nodes, edges, metrics, lodo, estimates, rerun)
     write_source("SourceData_ED3_network_edges.csv", source_edges,
                  "Supplementary Figure S3", "a", "results/qss_v3/network_edges.csv")
     write_source("SourceData_ED3_lodo.csv", source_lodo,
@@ -1361,7 +1356,7 @@ def main():
                  "results/qss_v3/network_leave_one_domain_out.csv")
     write_source("SourceData_ED3_sensitivities.csv", sensitivity,
                  "Supplementary Figure S3", "c-d",
-                 "results/qss_v3/dirty_estimates.csv;results/qss_v3/citation_dynamics.csv")
+                 "results/qss_v3/dirty_estimates.csv;results/qss_v3/round2_score_diagnostics.csv")
     paths += extended_data4(corridors, nodes)
     corridor_columns = [
         "case_rank", "qwen_macro", "display_label", "broad_id", "narrow_id",
