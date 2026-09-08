@@ -26,12 +26,12 @@ SHORT_LABELS = {
     0: "Economics & policy", 1: "Earth & environment", 2: "Reproduction & metabolism",
     3: "Electrical engineering", 4: "Plant & microbial biology", 5: "Energy engineering",
     6: "Clinical diagnostics", 7: "Electrochemical materials", 8: "Humanities & politics",
-    9: "Cell & neural biology", 10: "Social behaviour & violence", 11: "Mental health & cognition",
+    9: "Cell & neural biology", 10: "Social behavior & violence", 11: "Mental health & cognition",
     12: "Computing & networks", 13: "Marine & paleoscience", 14: "Immune disease",
     15: "Cardiovascular medicine", 16: "Public health & care", 17: "Surgery",
     18: "Mixed records", 19: "Synthetic chemistry", 20: "Civil engineering",
     21: "Metallurgy & alloys", 22: "Mathematics & physics", 23: "Ecology & taxonomy",
-    24: "Astronomy & imaging", 25: "Orthopaedics & sport", 26: "Climate & agriculture",
+    24: "Astronomy & imaging", 25: "Orthopedics & sports", 26: "Climate & agriculture",
     27: "Oncology", 28: "Education & language", 29: "Electronic materials",
     30: "Drug discovery", 31: "Chronic & infectious disease",
 }
@@ -171,7 +171,7 @@ def main():
     selected.to_csv(FLOW, index=False)
 
     style()
-    fig = plt.figure(figsize=(183 / 25.4, 138 / 25.4))
+    fig = plt.figure(figsize=(183 / 25.4, 150 / 25.4))
     grid = fig.add_gridspec(1, 2, width_ratios=[1.72, 0.78], left=0.025, right=0.98,
                            bottom=0.035, top=0.97, wspace=0.04)
     wheel = fig.add_subplot(grid[0, 0]); mechanism = fig.add_subplot(grid[0, 1])
@@ -245,13 +245,16 @@ def main():
         wheel.text(tx, ty, row.display_label, rotation=rotation, rotation_mode="anchor",
                    ha=align, va="center", fontsize=5.0,
                    color=MID_GRAY if row.qwen_macro == 18 else INK)
-    wheel.add_patch(Circle((0, 0), 0.105, facecolor=WHITE, edgecolor=INK, lw=0.45, zorder=5))
-    wheel.text(0, 0.012, "OpenAlex", ha="center", fontsize=6.4, fontweight="bold", zorder=6)
-    wheel.text(0, -0.030, "32 areas · 1,000 topics", ha="center", fontsize=5.0,
+    wheel.add_patch(Circle((0, 0), 0.125, facecolor=WHITE, edgecolor=INK, lw=0.45, zorder=5))
+    wheel.text(0, 0.035, "OpenAlex articles", ha="center", fontsize=6.2,
+               fontweight="bold", zorder=6)
+    wheel.text(0, -0.005, "15.1 million papers", ha="center", fontsize=5.0,
+               color=MID_GRAY, zorder=6)
+    wheel.text(0, -0.045, "32 areas · 1,000 topics", ha="center", fontsize=5.0,
                color=MID_GRAY, zorder=6)
     wheel.text(0, 1.04, "A semantic hierarchy of scientific work", fontsize=7,
                fontweight="bold", ha="center")
-    wheel.set(xlim=(-1.16, 1.16), ylim=(-1.14, 1.16))
+    wheel.set(xlim=(-1.34, 1.24), ylim=(-1.28, 1.20))
 
     estimates = pd.read_csv(RESULTS / "dirty_estimates.csv")
     routing = estimates.loc[(estimates.analysis.eq("primary")) &
