@@ -3,3 +3,4 @@ lightgbm
 matplotlib==3.11.1
 torch
 transformers
+umap-learn==0.5.12

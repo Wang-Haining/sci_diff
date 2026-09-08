@@ -72,7 +72,7 @@ def write_run(stage, counts=None, extra=None):
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     packages = {}
     for name in ("duckdb", "numpy", "pandas", "pyarrow", "scikit-learn",
-                 "lightgbm", "torch", "transformers", "adapters"):
+                 "lightgbm", "torch", "transformers", "adapters", "umap-learn"):
         try:
             packages[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
