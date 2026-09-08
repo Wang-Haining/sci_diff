@@ -1,0 +1,38 @@
+{
+  "design": "qss_v3",
+  "stage": "hierarchy",
+  "status": "complete",
+  "snapshot_date": "2026-06-26",
+  "seed": 20260902,
+  "git_commit": "c3adbade1bde1fc09f666d1924ecea868e6498d0",
+  "timestamp_utc": "2026-09-08T04:14:22.982753+00:00",
+  "packages": {
+    "duckdb": "1.5.5",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "torch": "2.14.0",
+    "transformers": "4.57.6",
+    "adapters": "1.3.0",
+    "umap-learn": "0.5.12"
+  },
+  "counts": {
+    "eligible_papers": 15117251,
+    "shown_papers": 192000,
+    "journal_markers": 74,
+    "research_areas": 32,
+    "citation_backbone_edges": 67
+  },
+  "extra": {
+    "eligible_papers_by_scope_group": {
+      "0": 3268625,
+      "1": 4349037,
+      "2": 7499589
+    },
+    "backbone_flow_coverage": 0.40212405899614856,
+    "umap_supervision": "qwen_macro only",
+    "group_free_bytes": 2282007035904
+  }
+}

@@ -1,0 +1,75 @@
+journal_id,journal_name,qwen_macro,treatment,n,reach,umap_x,umap_y
+https://openalex.org/S25293849,The FASEB Journal,9,0,14248,2.7648972613131395,16.029562,-2.8183594
+https://openalex.org/S141953298,BMJ Case Reports,6,0,4080,1.311600110036502,9.760168,-8.756596
+https://openalex.org/S25293849,The FASEB Journal,4,0,4069,2.464713977694309,18.259136,0.32704386
+https://openalex.org/S183492911,"Proceedings of SPIE, the International Society for Optical Engineering/Proceedings of SPIE",24,0,3791,1.702253411841333,8.564994,7.5861273
+https://openalex.org/S151589183,Biochemical and Biophysical Research Communications,9,0,3679,2.4998562431014166,15.802557,-2.5966299
+https://openalex.org/S11296630,The Journal of the Acoustical Society of America,24,0,3596,2.015151195381342,7.8015227,6.951217
+https://openalex.org/S25293849,The FASEB Journal,30,0,3483,3.084794625770823,15.35671,-0.81018555
+https://openalex.org/S25293849,The FASEB Journal,2,0,3448,2.6445660782599667,18.270922,-5.4976892
+https://openalex.org/S25293849,The FASEB Journal,15,0,3257,2.173755749979035,13.250601,-10.763813
+https://openalex.org/S25293849,The FASEB Journal,31,0,3211,1.9172130714295874,8.551905,-4.00649
+https://openalex.org/S11296630,The Journal of the Acoustical Society of America,20,0,3133,1.6852423884962857,12.77932,16.201828
+https://openalex.org/S2898407351,Materials Today Proceedings,21,0,3128,0.9176399238592353,9.971684,13.670052
+https://openalex.org/S4220651000,Abstracts with programs - Geological Society of America,1,0,2518,2.086136835797392,13.035311,8.035354
+https://openalex.org/S24807848,Physical Review Letters,29,0,2048,0.9468802905984648,10.874784,10.781216
+https://openalex.org/S98085912,Biophysical Journal,9,0,1895,2.7301288107409873,16.356182,-2.5525758
+https://openalex.org/S25293849,The FASEB Journal,11,0,1888,2.520135735805014,4.6261744,-5.0804873
+https://openalex.org/S4220651000,Abstracts with programs - Geological Society of America,13,0,1881,2.264576325578602,19.245728,6.946149
+https://openalex.org/S26125866,Journal of Materials Science,7,0,1878,0.7120092776639455,14.759466,12.128485
+https://openalex.org/S33442941,Chinese Physics B,29,0,1850,0.8547899376567722,11.288321,11.0583
+https://openalex.org/S143744711,Japanese Journal of Applied Physics,29,0,1847,1.168025588284225,11.68188,11.006447
+https://openalex.org/S192650101,Information Sciences,12,0,1832,0.7665837019914385,2.6165762,8.397833
+https://openalex.org/S86852077,The Science of The Total Environment,1,0,1717,1.842747590421107,13.553627,6.823197
+https://openalex.org/S182099265,Journal of Biotechnology,4,0,1698,1.2758457984169351,18.539791,0.5173836
+https://openalex.org/S2898407351,Materials Today Proceedings,7,0,1686,1.2789421924101183,10.972303,12.95844
+https://openalex.org/S95667342,Journal of American History,8,0,1660,2.1416411428841142,-1.6306777,-0.2315162
+https://openalex.org/S94052278,The European Physical Journal C,22,0,1627,0.7373489141690939,1.5654302,11.474993
+https://openalex.org/S180907581,Physics Today,18,0,1597,4.263977729180496,0.51459175,2.9941566
+https://openalex.org/S2898407351,Materials Today Proceedings,20,0,1597,1.1835987016615477,13.741917,15.89906
+https://openalex.org/S86852077,The Science of The Total Environment,26,0,1532,1.2890746417733066,8.431737,3.7347322
+https://openalex.org/S2485537415,IEEE Access,12,0,1396,0.9086113593524273,1.6442245,8.486692
+https://openalex.org/S11296630,The Journal of the Acoustical Society of America,28,0,1387,1.3626510188314578,3.4383066,0.9369039
+https://openalex.org/S64187185,Nature Communications,9,0,1375,2.135724703461393,15.960794,-2.4273493
+https://openalex.org/S92766711,Frontiers in Psychiatry,11,0,1375,2.0447914820736424,4.1064034,-4.380569
+https://openalex.org/S169054600,Journal of the Neurological Sciences,6,0,1373,1.5593096306262972,9.276476,-8.833613
+https://openalex.org/S77494981,PEDIATRICS,16,0,1359,1.4394764413036152,5.447917,-1.6112714
+https://openalex.org/S26125866,Journal of Materials Science,21,0,662,1.5924508715691899,10.284404,13.425297
+https://openalex.org/S113993733,Biotechnology Letters,4,0,579,1.2036312998015104,18.493113,0.4732426
+https://openalex.org/S14436165,Reactions Weekly,30,1,63949,2.901674853932359,12.3439,1.4904631
+https://openalex.org/S29980478,Construction and Building Materials,20,1,8908,0.6761327069808477,13.941348,15.449693
+https://openalex.org/S14436165,Reactions Weekly,14,1,7092,2.431889704078755,14.996476,-6.4770436
+https://openalex.org/S25650217,Annals of the Rheumatic Diseases,14,1,7054,1.4805750735306744,14.531441,-6.126507
+https://openalex.org/S171471881,Zootaxa,23,1,6958,0.7790597807487766,19.942642,3.7053447
+https://openalex.org/S38008053,The Journal of Immunology,14,1,4946,2.182888157755229,15.089449,-5.102701
+https://openalex.org/S66354037,Physics of Plasmas,5,1,4892,0.8908606233588652,9.425991,17.554644
+https://openalex.org/S185605772,HPB,27,1,4613,0.8808011477977524,12.287443,-2.160001
+https://openalex.org/S154732359,Materials Science and Engineering A,21,1,4389,0.37280664702086386,9.740433,13.558371
+https://openalex.org/S181568219,European Heart Journal,15,1,4163,0.9238870284909885,12.756626,-11.130611
+https://openalex.org/S21317199,European Journal of Organic Chemistry,19,1,4097,0.6697911612767037,21.050045,12.866322
+https://openalex.org/S4210239733,Case Medical Research,27,1,3799,1.598730505373777,12.598397,-1.5238595
+https://openalex.org/S4210239733,Case Medical Research,31,1,3796,1.8060021304298706,8.798096,-3.7756152
+https://openalex.org/S144507673,Radiotherapy and Oncology,27,1,3703,0.7710119668208898,12.024753,-1.7715356
+https://openalex.org/S138759888,Journal of The Electrochemical Society,7,1,3545,0.7281124068827101,14.982118,12.42658
+https://openalex.org/S168522863,Cancer Research,27,1,3486,0.9749087946652636,12.738529,-1.6066757
+https://openalex.org/S3649266,Journal of Magnetism and Magnetic Materials,29,1,3410,0.8855475324547324,10.701412,11.049611
+https://openalex.org/S106908163,Neuro-Oncology,6,1,3296,1.426458616521672,8.945489,-8.092988
+https://openalex.org/S110533041,International Journal of Radiation Oncology*Biology*Physics,27,1,3263,0.7210607787148442,12.244977,-1.682123
+https://openalex.org/S4210239733,Case Medical Research,17,1,3255,1.1354227901064649,10.470599,-6.656338
+https://openalex.org/S27359860,Vaccine,31,1,3207,1.0572688941963697,8.558075,-2.5075662
+https://openalex.org/S38008053,The Journal of Immunology,9,1,3144,3.1142870265136784,15.64217,-3.2472935
+https://openalex.org/S165454098,Engineering Structures,20,1,3089,0.41236966995654084,13.512814,15.728474
+https://openalex.org/S126644158,Oncotarget,27,1,3082,1.5334107318108694,13.314033,-2.0842886
+https://openalex.org/S108427512,Alzheimer s & Dementia,11,1,3081,1.4077693163532772,3.847387,-4.9349995
+https://openalex.org/S195663288,Monthly Notices of the Royal Astronomical Society,24,1,3081,0.3799155835598512,7.800998,8.579843
+https://openalex.org/S41354064,ChemInform,19,1,3080,1.4413835236184025,20.902828,12.851981
+https://openalex.org/S102181007,INTERNATIONAL JOURNAL OF SYSTEMATIC AND EVOLUTIONARY MICROBIOLOGY,4,1,3064,1.2059152025962405,18.391796,0.94651634
+https://openalex.org/S106908163,Neuro-Oncology,27,1,3064,1.651510189775531,13.164341,-2.4018216
+https://openalex.org/S14436165,Reactions Weekly,11,1,3045,2.736076765042824,4.861945,-4.2537146
+https://openalex.org/S62532593,Stroke,15,1,2986,0.9136268217325861,12.020974,-10.831832
+https://openalex.org/S4210239733,Case Medical Research,15,1,2940,1.387705723966655,12.478959,-10.991692
+https://openalex.org/S166159787,Dalton Transactions,7,1,2829,0.7293395756073204,15.061424,11.845711
+https://openalex.org/S29980478,Construction and Building Materials,21,1,2778,1.1703851567271353,11.020814,13.978908
+https://openalex.org/S166159787,Dalton Transactions,19,1,2736,1.2939660310532373,20.261028,12.442249
+https://openalex.org/S25422132,Journal of Solid State Electrochemistry,7,1,1256,0.499527025181387,14.983871,12.479159
+https://openalex.org/S9184782,Protein Expression and Purification,4,1,705,1.1967036375886102,18.409328,0.43838853
