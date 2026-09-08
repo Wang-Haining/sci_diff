@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+import csv
 import json
 import math
 import shutil
 import subprocess
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import matplotlib
 matplotlib.use("Agg")
@@ -41,15 +43,17 @@ def frozen_primary_guard():
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise FileNotFoundError(f"missing frozen inputs: {missing}")
-    result = pd.read_csv(PRIMARY_RESULTS)
-    row = result[(result.analysis == "primary") &
-                 (result.outcome == "far_to_near_routing")]
-    if len(row) != 1:
-        raise ValueError(f"expected one frozen primary routing row, got {len(row)}")
-    row = row.iloc[0]
-    got = (float(row.estimate), float(row.ci_low), float(row.ci_high),
-           int(row.n), int(row.journals))
-    expected = (EXPECTED_THETA, *EXPECTED_CI, EXPECTED_N, EXPECTED_JOURNALS)
+    with PRIMARY_RESULTS.open(newline="") as handle:
+        rows = [row for row in csv.DictReader(handle)
+                if row["analysis"] == "primary" and
+                row["outcome"] == "far_to_near_routing"]
+    if len(rows) != 1:
+        raise ValueError(f"expected one frozen primary routing row, got {len(rows)}")
+    row = rows[0]
+    got = (Decimal(row["estimate"]), Decimal(row["ci_low"]),
+           Decimal(row["ci_high"]), int(row["n"]), int(row["journals"]))
+    expected = (Decimal(str(EXPECTED_THETA)), Decimal(str(EXPECTED_CI[0])),
+                Decimal(str(EXPECTED_CI[1])), EXPECTED_N, EXPECTED_JOURNALS)
     if got != expected:
         raise ValueError(f"frozen primary mismatch: expected={expected}, got={got}")
     run = json.loads(PRIMARY_RUN.read_text())
@@ -58,8 +62,8 @@ def frozen_primary_guard():
     run_expected = (EXPECTED_ANALYSIS, EXPECTED_N, EXPECTED_THETA)
     if run_got != run_expected:
         raise ValueError(f"frozen run mismatch: expected={run_expected}, got={run_got}")
-    print(f"frozen primary reproduced theta={got[0]:.10f} "
-          f"CI=({got[1]:.10f},{got[2]:.10f}) N={got[3]:,} "
+    print(f"frozen primary reproduced theta={got[0]} "
+          f"CI=({got[1]},{got[2]}) N={got[3]:,} "
           f"journals={got[4]:,}", flush=True)
 
 
