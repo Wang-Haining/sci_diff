@@ -138,21 +138,22 @@ def main():
         raise ValueError("expected a unique order for all 1,000 topic leaves")
 
     gap = 0.010
-    leaf_width = (2 * np.pi - 32 * gap) / 1000
-    cursor = -np.pi / 2
+    opening = np.deg2rad(50)
+    leaf_width = (2 * np.pi - opening - 32 * gap) / 1000
+    cursor = np.pi / 2 - opening / 2
     leaf_angles, area_rows = {}, []
     for macro in macro_order:
         members = [leaf for leaf in ordered_leaves if leaf_to_macro[leaf] == macro]
-        start = cursor
-        for leaf in members:
-            leaf_angles[leaf] = cursor + leaf_width / 2
-            cursor += leaf_width
         end = cursor
+        for leaf in members:
+            leaf_angles[leaf] = cursor - leaf_width / 2
+            cursor -= leaf_width
+        start = cursor
         label = SHORT_LABELS[macro]
         area_rows.append({"qwen_macro": macro, "display_label": label, "start": start,
                           "end": end, "angle": (start + end) / 2, "leaves": len(members),
                           "papers": int(wide.loc[wide.qwen_macro.eq(macro), "total"].sum())})
-        cursor += gap
+        cursor -= gap
     areas = pd.DataFrame(area_rows)
     wide["angle"] = wide.qwen_leaf.map(leaf_angles)
     wide.to_csv(LEAF_SCOPE, index=False)
@@ -242,14 +243,14 @@ def main():
         if 90 < degrees < 270:
             rotation += 180; align = "right"
         wheel.text(tx, ty, row.display_label, rotation=rotation, rotation_mode="anchor",
-                   ha=align, va="center", fontsize=4.25,
+                   ha=align, va="center", fontsize=5.0,
                    color=MID_GRAY if row.qwen_macro == 18 else INK)
     wheel.add_patch(Circle((0, 0), 0.105, facecolor=WHITE, edgecolor=INK, lw=0.45, zorder=5))
     wheel.text(0, 0.012, "OpenAlex", ha="center", fontsize=6.4, fontweight="bold", zorder=6)
     wheel.text(0, -0.030, "32 areas · 1,000 topics", ha="center", fontsize=5.0,
                color=MID_GRAY, zorder=6)
-    wheel.text(-1.12, 1.10, "A semantic hierarchy of scientific work", fontsize=7,
-               fontweight="bold", ha="left")
+    wheel.text(0, 1.04, "A semantic hierarchy of scientific work", fontsize=7,
+               fontweight="bold", ha="center")
     wheel.set(xlim=(-1.16, 1.16), ylim=(-1.14, 1.16))
 
     estimates = pd.read_csv(RESULTS / "dirty_estimates.csv")
@@ -260,10 +261,13 @@ def main():
     mechanism.text(0.02, 0.96, "Journal scope as an audience filter", fontsize=7,
                    fontweight="bold", va="top")
     mechanism.plot([0.04, 0.12], [0.885, 0.885], color="#6F747B", lw=3)
-    mechanism.text(0.14, 0.885, "paper volume", va="center", fontsize=4.9)
+    mechanism.text(0.14, 0.885, "paper volume", va="center", fontsize=5.0)
     for x0, color in zip((0.47, 0.51, 0.55), (BLUE, "#B7BBC2", CORAL)):
         mechanism.add_patch(Circle((x0, 0.885), 0.010, facecolor=color, edgecolor="none"))
-    mechanism.text(0.58, 0.885, "broader · middle · narrower", va="center", fontsize=4.9)
+    mechanism.text(0.58, 0.885, "broader · middle · narrower", va="center", fontsize=5.0)
+    mechanism.plot([0.04, 0.08], [0.845, 0.845], color=BLUE, lw=0.8)
+    mechanism.plot([0.085, 0.125], [0.845, 0.845], color=CORAL, lw=0.8)
+    mechanism.text(0.14, 0.845, "relative citation flows", va="center", fontsize=5.0)
     mechanism.text(0.50, 0.805, "Comparable published content", ha="center", fontsize=5.6,
                    color=MID_GRAY)
     mechanism.add_patch(Circle((0.50, 0.755), 0.025, facecolor="#EFEFF1", edgecolor=INK, lw=0.45))
