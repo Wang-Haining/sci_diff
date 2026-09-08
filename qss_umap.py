@@ -20,6 +20,14 @@ CASE_NAMES = {
     "Biotechnology Letters", "Protein Expression and Purification",
     "Journal of Materials Science", "Journal of Solid State Electrochemistry",
 }
+LABEL_OFFSETS = {4: (28, 3), 31: (-15, -17), 7: (0, 16), 30: (38, 11),
+                 18: (-35, 0), 8: (28, 14), 12: (-30, 13), 9: (18, -17)}
+CASE_LABELS = {
+    ("Biotechnology Letters", 4): (-82, 12),
+    ("Protein Expression and Purification", 4): (18, -14),
+    ("Journal of Materials Science", 7): (-88, 13),
+    ("Journal of Solid State Electrochemistry", 7): (20, -10),
+}
 BLUE, CORAL, INK, CLOUD = "#4DBBD5", "#E64B35", "#252525", "#506784"
 
 
@@ -93,7 +101,7 @@ def main():
     labels.loc[labels.qwen_macro == 18, "display_label"] = "Mixed records"
     centers = sample.groupby("qwen_macro")[["umap_x", "umap_y"]].median().reset_index()
     centers = centers.merge(labels[["qwen_macro", "display_label", "n"]], on="qwen_macro")
-    show = set(centers.nlargest(8, "n").qwen_macro) | {4, 7, 8, 12}
+    show = set(centers.nlargest(8, "n").qwen_macro)
 
     plt.rcParams.update({"font.family": "sans-serif", "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
                          "font.size": 7, "pdf.fonttype": 42, "savefig.dpi": 300})
@@ -105,10 +113,13 @@ def main():
         for spine in axis.spines.values():
             spine.set_visible(False)
     for row in centers[centers.qwen_macro.isin(show)].itertuples():
-        axes[0].text(row.umap_x, row.umap_y, row.display_label, ha="center", va="center",
-                     fontsize=5.4, color=INK,
-                     bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.76, "pad": 1.2})
-    axes[0].set_title("The semantic landscape of scientific papers", loc="left", fontweight="bold")
+        offset = LABEL_OFFSETS[int(row.qwen_macro)]
+        axes[0].annotate(row.display_label, (row.umap_x, row.umap_y), xytext=offset,
+                         textcoords="offset points", ha="center", va="center",
+                         fontsize=5.3, color=INK,
+                         bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.8, "pad": 1.0},
+                         arrowprops={"arrowstyle": "-", "lw": 0.3, "color": "#888888"})
+    axes[0].set_title("Papers form a semantic landscape", loc="left", fontweight="bold")
 
     lo, hi = np.quantile(np.log(journals.reach), [0.05, 0.95])
     halo = 45 + 250 * np.clip((np.log(journals.reach) - lo) / (hi - lo), 0, 1)
@@ -117,16 +128,20 @@ def main():
                     linewidths=0, zorder=2)
     axes[1].scatter(journals.umap_x, journals.umap_y, s=17, c=colors, edgecolors="white",
                     linewidths=0.45, zorder=3)
-    for row in journals[journals.journal_name.isin(CASE_NAMES)].itertuples():
-        axes[1].annotate(row.journal_name, (row.umap_x, row.umap_y), xytext=(5, 5),
-                         textcoords="offset points", fontsize=5.2, color=INK,
+    for row in journals.itertuples():
+        key = (row.journal_name, int(row.qwen_macro))
+        if key not in CASE_LABELS:
+            continue
+        axes[1].annotate(row.journal_name, (row.umap_x, row.umap_y), xytext=CASE_LABELS[key],
+                         textcoords="offset points", fontsize=5.1, color=INK,
                          arrowprops={"arrowstyle": "-", "lw": 0.35, "color": "#777777"})
     axes[1].scatter([], [], s=22, c=BLUE, label="Broader-scope journal")
     axes[1].scatter([], [], s=22, c=CORAL, label="Narrower-scope journal")
-    axes[1].legend(frameon=False, loc="lower left", handletextpad=0.3)
-    axes[1].set_title("Where journals sit—and how widely their papers travel", loc="left", fontweight="bold")
-    axes[1].text(0.99, 0.01, "Larger halo = more citations from other research areas\nrelative to citations from the same topic",
-                 transform=axes[1].transAxes, ha="right", va="bottom", fontsize=5.5, color="#555555")
+    axes[1].legend(frameon=False, loc="lower left", handletextpad=0.3, borderaxespad=0.8)
+    axes[1].set_title("Journal scope and the origins of later citations", loc="left", fontweight="bold")
+    axes[1].text(0.99, 0.99, "Larger halo = more citations from other research areas\nrelative to citations from the same topic",
+                 transform=axes[1].transAxes, ha="right", va="top", fontsize=5.4, color="#555555",
+                 bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.78, "pad": 1.4})
     for i, axis in enumerate(axes):
         axis.text(-0.04, 1.03, "ab"[i], transform=axis.transAxes, fontweight="bold", fontsize=8)
     fig.tight_layout(w_pad=1.5)
