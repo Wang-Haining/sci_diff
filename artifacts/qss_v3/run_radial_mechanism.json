@@ -4,8 +4,8 @@
   "status": "complete",
   "snapshot_date": "2026-06-26",
   "seed": 20260902,
-  "git_commit": "51d9b1be4523079ac3a7d602a5fb095731cb3ee3",
-  "timestamp_utc": "2026-09-08T04:48:26.625460+00:00",
+  "git_commit": "859c50a26baae0f952f3b8dc0ca01c7c6ed5b342",
+  "timestamp_utc": "2026-09-08T18:47:52.352687+00:00",
   "packages": {
     "duckdb": "1.5.5",
     "numpy": "2.5.1",
