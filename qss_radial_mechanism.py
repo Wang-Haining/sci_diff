@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.path import Path
-from matplotlib.patches import Circle, FancyArrowPatch, PathPatch, Wedge
+from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, PathPatch, Wedge
 from scipy.cluster.hierarchy import leaves_list, linkage, to_tree
 from scipy.spatial.distance import squareform
 
@@ -20,9 +20,21 @@ AREA_ORDER = RESULTS / "radial_area_order.csv"
 FLOW = RESULTS / "radial_citation_backbone.csv"
 FIGURE = RESULTS / "figures/figure_radial_mechanism"
 BLUE = "#2386B8"
-GRAY = "#858C96"
 GROUP_COLORS = {0: BLUE, 2: "#B7BBC2", 1: CORAL}
 EXPECTED_GROUPS = {0: 3_268_625, 1: 4_349_037, 2: 7_499_589}
+SHORT_LABELS = {
+    0: "Economics & policy", 1: "Earth & environment", 2: "Reproduction & metabolism",
+    3: "Electrical engineering", 4: "Plant & microbial biology", 5: "Energy engineering",
+    6: "Clinical diagnostics", 7: "Electrochemical materials", 8: "Humanities & politics",
+    9: "Cell & neural biology", 10: "Social behaviour & violence", 11: "Mental health & cognition",
+    12: "Computing & networks", 13: "Marine & paleoscience", 14: "Immune disease",
+    15: "Cardiovascular medicine", 16: "Public health & care", 17: "Surgery",
+    18: "Mixed records", 19: "Synthetic chemistry", 20: "Civil engineering",
+    21: "Metallurgy & alloys", 22: "Mathematics & physics", 23: "Ecology & taxonomy",
+    24: "Astronomy & imaging", 25: "Orthopaedics & sport", 26: "Climate & agriculture",
+    27: "Oncology", 28: "Education & language", 29: "Electronic materials",
+    30: "Drug discovery", 31: "Chronic & infectious disease",
+}
 
 
 def xy(radius, angle):
@@ -57,17 +69,16 @@ def tree_nodes(root, macro_angles, max_distance):
 
 
 def draw_audience(axis, x0, y0, color, journal, same, other, ratio):
-    axis.add_patch(Circle((x0, y0 + 0.17), 0.055, facecolor=WHITE,
-                          edgecolor=color, lw=1.0))
-    axis.text(x0, y0 + 0.17, "J", ha="center", va="center", fontsize=6,
-              fontweight="bold", color=color)
-    axis.text(x0, y0 + 0.26, journal, ha="center", fontsize=6.1,
+    axis.add_patch(FancyBboxPatch((x0 - 0.19, y0 + 0.13), 0.38, 0.085,
+                                  boxstyle="round,pad=0.012,rounding_size=0.035",
+                                  facecolor=WHITE, edgecolor=color, lw=1.0))
+    axis.text(x0, y0 + 0.172, journal, ha="center", va="center", fontsize=5.8,
               fontweight="bold", color=INK)
     angles = np.linspace(np.pi * 0.10, np.pi * 0.90, 7)
     for index, angle in enumerate(angles):
         radius = 0.20
         target = (x0 + radius * np.cos(angle), y0 + radius * np.sin(angle) - 0.11)
-        axis.plot([x0, target[0]], [y0 + 0.12, target[1]], color=color,
+        axis.plot([x0, target[0]], [y0 + 0.13, target[1]], color=color,
                   lw=0.45 if index < 4 else 0.28, alpha=0.58)
         axis.add_patch(Circle(target, 0.011, facecolor=(color if index < 4 else WHITE),
                               edgecolor=color, lw=0.45))
@@ -81,8 +92,7 @@ def draw_audience(axis, x0, y0, color, journal, same, other, ratio):
 def main():
     check_budget()
     for path in (ANALYSIS, QWEN, TAXONOMY, RESULTS / "network_nodes.csv",
-                 RESULTS / "network_edges.csv", RESULTS / "macro_labels.csv",
-                 RESULTS / "dirty_estimates.csv"):
+                 RESULTS / "network_edges.csv", RESULTS / "dirty_estimates.csv"):
         if not path.is_file() or path.stat().st_size == 0:
             raise FileNotFoundError(f"expected nonempty input at {path}")
     leaf_to_macro, macro_centers, _, _ = load_taxonomy()
@@ -131,7 +141,6 @@ def main():
     leaf_width = (2 * np.pi - 32 * gap) / 1000
     cursor = -np.pi / 2
     leaf_angles, area_rows = {}, []
-    labels = pd.read_csv(RESULTS / "macro_labels.csv").set_index("qwen_macro")
     for macro in macro_order:
         members = [leaf for leaf in ordered_leaves if leaf_to_macro[leaf] == macro]
         start = cursor
@@ -139,7 +148,7 @@ def main():
             leaf_angles[leaf] = cursor + leaf_width / 2
             cursor += leaf_width
         end = cursor
-        label = "Mixed records" if macro == 18 else labels.loc[macro, "display_label"]
+        label = SHORT_LABELS[macro]
         area_rows.append({"qwen_macro": macro, "display_label": label, "start": start,
                           "end": end, "angle": (start + end) / 2, "leaves": len(members),
                           "papers": int(wide.loc[wide.qwen_macro.eq(macro), "total"].sum())})
@@ -228,7 +237,7 @@ def main():
                               edgecolor="none", alpha=0.82))
         tx, ty = xy(0.945, row.angle)
         degrees = (np.degrees(row.angle) + 360) % 360
-        rotation = degrees - 90
+        rotation = degrees
         align = "left"
         if 90 < degrees < 270:
             rotation += 180; align = "right"
@@ -248,30 +257,35 @@ def main():
                             (estimates.outcome.eq("far_to_near_routing"))].iloc[0]
     same = estimates.loc[(estimates.analysis.eq("primary")) & estimates.outcome.eq("near")].iloc[0]
     other = estimates.loc[(estimates.analysis.eq("primary")) & estimates.outcome.eq("far")].iloc[0]
-    mechanism.text(0.02, 0.96, "Journal scope may redirect who finds a paper", fontsize=7,
+    mechanism.text(0.02, 0.96, "Journal scope as an audience filter", fontsize=7,
                    fontweight="bold", va="top")
-    mechanism.text(0.50, 0.885, "Comparable published content", ha="center", fontsize=5.6,
+    mechanism.plot([0.04, 0.12], [0.885, 0.885], color="#6F747B", lw=3)
+    mechanism.text(0.14, 0.885, "paper volume", va="center", fontsize=4.9)
+    for x0, color in zip((0.47, 0.51, 0.55), (BLUE, "#B7BBC2", CORAL)):
+        mechanism.add_patch(Circle((x0, 0.885), 0.010, facecolor=color, edgecolor="none"))
+    mechanism.text(0.58, 0.885, "broader · middle · narrower", va="center", fontsize=4.9)
+    mechanism.text(0.50, 0.805, "Comparable published content", ha="center", fontsize=5.6,
                    color=MID_GRAY)
-    mechanism.add_patch(Circle((0.50, 0.83), 0.025, facecolor="#EFEFF1", edgecolor=INK, lw=0.45))
-    mechanism.add_patch(FancyArrowPatch((0.48, 0.80), (0.27, 0.70), arrowstyle="-|>",
+    mechanism.add_patch(Circle((0.50, 0.755), 0.025, facecolor="#EFEFF1", edgecolor=INK, lw=0.45))
+    mechanism.add_patch(FancyArrowPatch((0.48, 0.73), (0.27, 0.65), arrowstyle="-|>",
                                         mutation_scale=5, lw=0.45, color=MID_GRAY))
-    mechanism.add_patch(FancyArrowPatch((0.52, 0.80), (0.73, 0.70), arrowstyle="-|>",
+    mechanism.add_patch(FancyArrowPatch((0.52, 0.73), (0.73, 0.65), arrowstyle="-|>",
                                         mutation_scale=5, lw=0.45, color=MID_GRAY))
-    draw_audience(mechanism, 0.25, 0.48, BLUE, "Broader-scope journal",
+    draw_audience(mechanism, 0.25, 0.44, BLUE, "Broader-scope journal",
                   same.mean_broad, other.mean_broad, routing.mean_broad)
-    draw_audience(mechanism, 0.75, 0.48, CORAL, "Narrower-scope journal",
+    draw_audience(mechanism, 0.75, 0.44, CORAL, "Narrower-scope journal",
                   same.mean_specialized, other.mean_specialized, routing.mean_specialized)
-    mechanism.annotate("Adjusted ratio: 9.2% lower", xy=(0.75, 0.25),
-                       xytext=(0.50, 0.14), ha="center",
-                       fontsize=9, fontweight="bold", color=INK,
-                       arrowprops={"arrowstyle": "-[,widthB=3.6", "lw": 0.6, "color": INK})
+    mechanism.plot([0.25, 0.25, 0.75, 0.75], [0.235, 0.215, 0.215, 0.235],
+                   color=INK, lw=0.65)
+    mechanism.text(0.50, 0.145, "Adjusted ratio: 9.2% lower", ha="center",
+                   fontsize=8.2, fontweight="bold", color=INK)
     ratio_low = 100 * (1 - np.exp(routing.ci_high))
     ratio_high = 100 * (1 - np.exp(routing.ci_low))
-    mechanism.text(0.50, 0.090, f"95% CI, {ratio_low:.1f}–{ratio_high:.1f}% lower", ha="center",
+    mechanism.text(0.50, 0.105, f"95% CI, {ratio_low:.1f}–{ratio_high:.1f}% lower", ha="center",
                    fontsize=5.2, color=MID_GRAY)
-    mechanism.text(0.50, 0.055, "other-area citations relative to same-topic citations",
+    mechanism.text(0.50, 0.067, "other-area citations relative to same-topic citations",
                    ha="center", fontsize=5.3)
-    mechanism.text(0.50, 0.010, "Total-citation difference was imprecise.",
+    mechanism.text(0.50, 0.020, "Total-citation difference was imprecise.",
                    ha="center", fontsize=5.2, color=MID_GRAY)
     mechanism.set(xlim=(0, 1), ylim=(0, 1))
     fig.text(0.012, 0.965, "a", fontsize=8, fontweight="bold")
