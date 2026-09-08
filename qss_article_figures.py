@@ -1276,6 +1276,11 @@ def main():
     con = connect("50GB", 8)
 
     figure1_source, paths = figure1(con, nodes, manifests["v2_exposure"])
+    for name in sorted(protected_redesigns):
+        protected_paths = [FIGURES / f"{name}.pdf", FIGURES / f"{name}.png"]
+        if any(not path.is_file() or path.stat().st_size == 0 for path in protected_paths):
+            raise FileNotFoundError(f"missing protected redesigned figure {name}")
+        paths += protected_paths
     write_source("SourceData_Figure1.csv", figure1_source, "Figure 1", "a-d",
                  "qss_v2/journal_year_scope.parquet;artifacts/qss_v2/run_exposure.json;"
                  "results/qss_v3/network_nodes.csv")
@@ -1372,8 +1377,10 @@ def main():
     ], "Supplementary Figure S5", "a-d", "results/qss_v3/network_nodes.csv")
 
     manifest = pd.DataFrame(source_records).sort_values(["figure/panel", "source_file"])
-    if len(manifest) != 16 or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != 16:
-        raise ValueError(f"expected 16 hashed source-data files, got {len(manifest)}")
+    expected_sources = len(SOURCE_FILES)
+    if len(manifest) != expected_sources \
+            or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != expected_sources:
+        raise ValueError(f"expected {expected_sources} hashed source-data files, got {len(manifest)}")
     manifest.to_csv(SOURCE_DATA / "source_data_manifest.csv", index=False)
     if len(paths) != 16 or len(list(FIGURES.glob("*.pdf"))) != 8 \
             or len(list(FIGURES.glob("*.png"))) != 8:
