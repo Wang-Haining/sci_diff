@@ -1382,9 +1382,12 @@ def main():
             or manifest.sha256.str.fullmatch(r"[0-9a-f]{64}").sum() != expected_sources:
         raise ValueError(f"expected {expected_sources} hashed source-data files, got {len(manifest)}")
     manifest.to_csv(SOURCE_DATA / "source_data_manifest.csv", index=False)
-    if len(paths) != 16 or len(list(FIGURES.glob("*.pdf"))) != 8 \
-            or len(list(FIGURES.glob("*.png"))) != 8:
-        raise ValueError(f"expected 8 PDF and 8 PNG figures, got paths={len(paths)}")
+    expected_figure_paths = {
+        FIGURES / f"{name}.{suffix}" for name in FIGURE_NAMES for suffix in ("pdf", "png")
+    }
+    if len(paths) != 16 or set(paths) != expected_figure_paths:
+        raise ValueError(f"formal figure output mismatch: missing={expected_figure_paths - set(paths)} "
+                         f"extra={set(paths) - expected_figure_paths}")
     check_budget()
     log(f"article figures complete files={len(paths)} source_files={len(source_records)} "
         f"source_rows={manifest.rows.sum():,} seed={SEED} commit={commit}")
