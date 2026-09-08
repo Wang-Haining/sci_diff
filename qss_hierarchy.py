@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import umap
-from matplotlib.patches import FancyArrowPatch
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 from qss_article_figures import CORAL, INK, LIGHT_GRAY, MID_GRAY, WHITE, style
 from qss_common import SEED
@@ -19,6 +19,8 @@ PAPER_POINTS = V3_WORK / "hierarchy_papers.parquet"
 JOURNALS = RESULTS / "hierarchy_journals.csv"
 AREAS = RESULTS / "hierarchy_areas.csv"
 EDGES_OUT = RESULTS / "hierarchy_edges.csv"
+FIGURE = RESULTS / "figures/figure2_main_results"
+YEAR_SOURCE = RESULTS / "figure2_years.csv"
 PCS = [f"qpc{i:02d}" for i in range(1, 33)]
 GROUPS = {0: "Broader-scope journals", 1: "Narrower-scope journals",
           2: "Middle 50% (not compared)"}
@@ -33,6 +35,114 @@ CASES = {
     ("Journal of Solid State Electrochemistry", 7): (18, -8),
 }
 EXPECTED = {0: 3_268_625, 1: 4_349_037, 2: 7_499_589}
+
+
+def result_row(table, outcome):
+    rows = table.loc[(table.analysis.eq("primary")) & table.outcome.eq(outcome)]
+    if len(rows) != 1:
+        raise ValueError(f"expected one primary {outcome} row, got {len(rows)}")
+    return rows.iloc[0]
+
+
+def draw_primary_results(axis, estimates):
+    axis.axis("off")
+    axis.set(xlim=(0, 1), ylim=(0, 1))
+    other = result_row(estimates, "far")
+    same = result_row(estimates, "near")
+    routing = result_row(estimates, "far_to_near_routing")
+    total = result_row(estimates, "total_citations")
+    any_other = result_row(estimates, "any_far")
+
+    axis.text(0.02, 0.98, "Where citations accumulated", fontsize=7,
+              fontweight="bold", va="top")
+    columns = [(0.48, COLORS[0], "Broader-scope\njournals"),
+               (0.80, COLORS[1], "Narrower-scope\njournals")]
+    for x0, color, label in columns:
+        axis.text(x0, 0.86, label, ha="center", va="center", fontsize=5.7,
+                  fontweight="bold", color=color)
+    rows = [(0.70, "From other\nresearch areas", other),
+            (0.52, "From the\nsame topic", same)]
+    for y0, label, row in rows:
+        axis.text(0.03, y0, label, va="center", fontsize=5.4, color=INK)
+        for x0, color, value in ((0.48, COLORS[0], row.mean_broad),
+                                 (0.80, COLORS[1], row.mean_specialized)):
+            axis.add_patch(FancyBboxPatch((x0 - 0.115, y0 - 0.065), 0.23, 0.13,
+                           boxstyle="round,pad=0.008,rounding_size=0.018",
+                           facecolor=color, edgecolor="none", alpha=0.10))
+            axis.text(x0, y0 + 0.010, f"{value:.2f}", ha="center", va="center",
+                      fontsize=9, fontweight="bold", color=color)
+            axis.text(x0, y0 - 0.037, "citations per paper", ha="center", va="center",
+                      fontsize=4.7, color=MID_GRAY)
+
+    axis.text(0.03, 0.355, "Other area ÷\nsame topic", fontsize=5.4, va="center")
+    axis.text(0.48, 0.355, f"{other.mean_broad:.2f} ÷ {same.mean_broad:.2f} = "
+              f"{routing.mean_broad:.2f}", ha="center", va="center", fontsize=6.2,
+              fontweight="bold", color=COLORS[0])
+    axis.text(0.80, 0.355, f"{other.mean_specialized:.2f} ÷ {same.mean_specialized:.2f} = "
+              f"{routing.mean_specialized:.2f}", ha="center", va="center", fontsize=6.2,
+              fontweight="bold", color=COLORS[1])
+    axis.plot([0.48, 0.48, 0.80, 0.80], [0.285, 0.265, 0.265, 0.285], color=INK, lw=0.6)
+    ratio = np.exp(routing.estimate)
+    lower = 100 * (1 - np.exp(routing.ci_high))
+    upper = 100 * (1 - np.exp(routing.ci_low))
+    axis.text(0.64, 0.215, f"{routing.mean_specialized:.2f} ÷ "
+              f"{routing.mean_broad:.2f} = {ratio:.3f}", ha="center", fontsize=5.2,
+              color=MID_GRAY)
+    axis.text(0.64, 0.145, f"{100 * (1 - ratio):.1f}% lower", ha="center",
+              fontsize=10, fontweight="bold", color=CORAL)
+    axis.text(0.64, 0.095, f"95% CI, {lower:.1f}–{upper:.1f}% lower", ha="center",
+              fontsize=5.2, color=MID_GRAY)
+    axis.text(0.02, 0.025,
+              f"Overall citations: {total.mean_broad:.2f} vs {total.mean_specialized:.2f}; "
+              f"difference {total.estimate:.2f} (95% CI {total.ci_low:.2f} to {total.ci_high:.2f}).\n"
+              f"Any other-area citation: {100 * any_other.mean_broad:.1f}% vs "
+              f"{100 * any_other.mean_specialized:.1f}%.",
+              fontsize=4.6, color=MID_GRAY, va="bottom", linespacing=1.25)
+
+
+def draw_year_results(ratio_axis, effect_axis, years, tests):
+    if list(years.level.astype(int)) != list(range(2015, 2021)):
+        raise ValueError(f"expected publication years 2015-2020, got {years.level.tolist()}")
+    if not (years.estimate < 0).all():
+        raise ValueError("expected all six annual routing contrasts to be negative")
+    y = np.arange(len(years))[::-1]
+    broad = years.far_near_broad.to_numpy()
+    narrow = years.far_near_specialized.to_numpy()
+    for yy, left, right in zip(y, narrow, broad):
+        ratio_axis.plot([left, right], [yy, yy], color="#C8CCD1", lw=1.0, zorder=1)
+    ratio_axis.scatter(broad, y, s=16, color=COLORS[0], edgecolor=WHITE, lw=0.35,
+                       zorder=3, label="broader")
+    ratio_axis.scatter(narrow, y, s=16, color=COLORS[1], edgecolor=WHITE, lw=0.35,
+                       zorder=3, label="narrower")
+    for yy, b, n in zip(y, broad, narrow):
+        ratio_axis.text(b + 0.010, yy, f"{b:.2f}", va="center", ha="left",
+                        fontsize=4.5, color=COLORS[0])
+        ratio_axis.text(n - 0.010, yy, f"{n:.2f}", va="center", ha="right",
+                        fontsize=4.5, color=COLORS[1])
+    ratio_axis.set(yticks=y, yticklabels=years.level.astype(int), xlim=(1.17, 1.64),
+                   xlabel="Other-area citations per same-topic citation")
+    ratio_axis.tick_params(axis="y", length=0)
+    ratio_axis.legend(frameon=False, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.01),
+                      fontsize=4.7, handletextpad=0.25, columnspacing=0.8)
+    ratio_axis.spines[["top", "right", "left"]].set_visible(False)
+
+    point = 100 * np.expm1(years.estimate.to_numpy())
+    low = 100 * np.expm1(years.ci_low.to_numpy())
+    high = 100 * np.expm1(years.ci_high.to_numpy())
+    effect_axis.axvline(0, color=INK, lw=0.5)
+    effect_axis.errorbar(point, y, xerr=[point - low, high - point], fmt="o",
+                         ms=3.2, color=CORAL, ecolor=CORAL, elinewidth=0.75,
+                         capsize=1.4, zorder=2)
+    for yy, value in zip(y, point):
+        effect_axis.text(-24.5, yy, f"{value:.1f}%", ha="left", va="center",
+                         fontsize=4.5, color=INK)
+    effect_axis.set(yticks=[], xlim=(-25, 13), xlabel="Narrower vs broader (%)")
+    effect_axis.spines[["top", "right", "left"]].set_visible(False)
+    global_p = float(tests.loc[tests.test.eq("publication_year_global"), "p_value"].iloc[0])
+    trend_p = float(tests.loc[tests.test.eq("publication_year_linear_trend"), "p_value"].iloc[0])
+    effect_axis.text(0.98, -0.37, f"year heterogeneity P={global_p:.3f}; trend P={trend_p:.3f}",
+                     transform=effect_axis.transAxes, ha="right", fontsize=4.5,
+                     color=MID_GRAY)
 
 
 def layer_xy(x, y, bounds, base, height=0.245):
@@ -142,16 +252,26 @@ def main():
     axx, ayy = layer_xy(areas.umap_x, areas.umap_y, bounds, citation_base, layer_h)
     area_xy = dict(zip(areas.qwen_macro.astype(int), zip(axx, ayy)))
 
+    estimates = pd.read_csv(RESULTS / "dirty_estimates.csv")
+    years = pd.read_csv(RESULTS / "subgroup_estimates.csv")
+    years = years.loc[years.test.eq("publication_year")].sort_values("order").copy()
+    tests = pd.read_csv(RESULTS / "subgroup_tests.csv")
+    years.assign(
+        ratio_change_percent=100 * np.expm1(years.estimate),
+        ratio_ci_low_percent=100 * np.expm1(years.ci_low),
+        ratio_ci_high_percent=100 * np.expm1(years.ci_high),
+    ).to_csv(YEAR_SOURCE, index=False)
+
     style()
-    fig = plt.figure(figsize=(183 / 25.4, 145 / 25.4))
-    grid = fig.add_gridspec(1, 2, width_ratios=[2.15, 0.72], left=0.045, right=0.98,
-                           bottom=0.06, top=0.95, wspace=0.18)
+    fig = plt.figure(figsize=(183 / 25.4, 160 / 25.4))
+    grid = fig.add_gridspec(1, 2, width_ratios=[1.48, 1.0], left=0.04, right=0.985,
+                           bottom=0.07, top=0.96, wspace=0.12)
     axis = fig.add_subplot(grid[0, 0])
-    metric_grid = grid[0, 1].subgridspec(5, 1, height_ratios=[0.55, 1, 1, 1, 1.25], hspace=0.78)
-    title_axis = fig.add_subplot(metric_grid[0, 0]); title_axis.axis("off")
-    metric_axes = [fig.add_subplot(metric_grid[i, 0]) for i in (1, 2, 3)]
-    legend_axis = fig.add_subplot(metric_grid[4, 0]); legend_axis.axis("off")
-    title_axis.text(0, 0.98, "Network-wide evidence", fontsize=7, fontweight="bold", va="top")
+    right = grid[0, 1].subgridspec(2, 1, height_ratios=[1.22, 0.78], hspace=0.24)
+    result_axis = fig.add_subplot(right[0, 0])
+    year_grid = right[1, 0].subgridspec(1, 2, width_ratios=[1.30, 0.85], wspace=0.27)
+    ratio_axis = fig.add_subplot(year_grid[0, 0])
+    effect_axis = fig.add_subplot(year_grid[0, 1])
 
     for macro in (4, 7, 8, 12):
         row = areas.loc[areas.qwen_macro.eq(macro)].iloc[0]
@@ -173,8 +293,8 @@ def main():
     axis.legend(frameon=False, loc="lower right", bbox_to_anchor=(0.99, paper_base + 0.005),
                 fontsize=5.2, handletextpad=0.25, borderaxespad=0)
 
-    halo_lo, halo_hi = np.quantile(np.log(journals.reach), [0.05, 0.95])
-    halo = 35 + 170 * np.clip((np.log(journals.reach) - halo_lo) / (halo_hi - halo_lo), 0, 1)
+    halo_lo, halo_hi = np.quantile(np.log1p(journals.n), [0.05, 0.95])
+    halo = 35 + 170 * np.clip((np.log1p(journals.n) - halo_lo) / (halo_hi - halo_lo), 0, 1)
     journal_colors = np.where(journals.treatment.eq(1), CORAL, COLORS[0])
     axis.scatter(jx, jy, s=halo, c=journal_colors, alpha=0.12, linewidths=0, zorder=2)
     axis.scatter(jx, jy, s=13, c=journal_colors, edgecolors=WHITE, linewidths=0.35, zorder=3)
@@ -186,20 +306,12 @@ def main():
                           arrowprops={"arrowstyle": "-", "lw": 0.3, "color": MID_GRAY})
 
     pooled_max = selected.pooled_standardized_share.max()
-    shift_max = selected.standardized_share_difference.abs().max()
     for row in selected.itertuples():
         start, end = area_xy[int(row.source_macro)], area_xy[int(row.target_macro)]
-        axis.add_patch(FancyArrowPatch(start, end, connectionstyle="arc3,rad=0.10",
-                       arrowstyle="-", linewidth=0.12 + 0.65 * row.pooled_standardized_share / pooled_max,
-                       color=LIGHT_GRAY, alpha=0.36, shrinkA=2, shrinkB=2, zorder=1))
-    for row in selected.itertuples():
-        start, end = area_xy[int(row.source_macro)], area_xy[int(row.target_macro)]
-        increase = row.standardized_share_difference >= 0
         axis.add_patch(FancyArrowPatch(start, end, connectionstyle="arc3,rad=0.10",
                        arrowstyle="-|>", mutation_scale=3.2,
-                       linewidth=0.15 + 0.70 * abs(row.standardized_share_difference) / shift_max,
-                       color=CORAL if increase else COLORS[0], alpha=0.56,
-                       linestyle="-" if increase else "--", shrinkA=3, shrinkB=3, zorder=2))
+                       linewidth=0.12 + 0.65 * row.pooled_standardized_share / pooled_max,
+                       color=LIGHT_GRAY, alpha=0.46, shrinkA=3, shrinkB=3, zorder=1))
     node_sizes = 9 + 105 * areas.source_share / areas.source_share.max()
     axis.scatter(axx, ayy, s=node_sizes, facecolor=WHITE, edgecolor=INK, linewidth=0.42, zorder=4)
     for row in areas.nlargest(6, "source_share").itertuples():
@@ -229,36 +341,19 @@ def main():
     for spine in axis.spines.values():
         spine.set_visible(False)
 
-    metrics = pd.read_csv(RESULTS / "network_metrics.csv").set_index("metric")
-    metric_specs = [("directed_modularity", "Within-area retention", "higher"),
-                    ("audience_participation", "Diversity of citing areas", "lower"),
-                    ("semantic_span", "Mean semantic distance", "lower")]
-    for metric_axis, (metric, label, direction) in zip(metric_axes, metric_specs):
-        row = metrics.loc[metric]
-        point = 100 * row.contrast_specialized_minus_broad
-        low, high = 100 * row.bootstrap_ci_low, 100 * row.bootstrap_ci_high
-        metric_axis.axvline(0, color=INK, lw=0.5)
-        metric_axis.errorbar(point, 0, xerr=[[point - low], [high - point]], fmt="o",
-                             ms=3.2, color=CORAL, capsize=1.5, lw=0.8)
-        metric_axis.set(yticks=[], title=label)
-        metric_axis.set_xlabel("Narrower − broader (×100)", fontsize=5)
-        metric_axis.text(0.98, 0.08, f"{direction}: {point:+.2f}", transform=metric_axis.transAxes,
-                         ha="right", fontsize=5.0, color=MID_GRAY)
-    legend_axis.plot([], [], color=CORAL, lw=1, label="relatively more for narrower-scope papers")
-    legend_axis.plot([], [], color=COLORS[0], lw=1, ls="--",
-                     label="relatively more for broader-scope papers")
-    legend_axis.scatter([], [], s=45, facecolor=CORAL, alpha=0.15, edgecolor="none",
-                        label="larger journal halo = broader citation reach")
-    legend_axis.legend(frameon=False, loc="upper left", fontsize=5.2, handlelength=1.5)
+    draw_primary_results(result_axis, estimates)
+    draw_year_results(ratio_axis, effect_axis, years, tests)
+    ratio_axis.text(-0.19, 1.17, "Across publication years", transform=ratio_axis.transAxes,
+                    fontsize=7, fontweight="bold", va="bottom")
     fig.text(0.012, 0.965, "a", fontsize=8, fontweight="bold")
-    fig.text(0.757, 0.965, "b", fontsize=8, fontweight="bold")
-    fig.savefig(RESULTS / "figures/figure_semantic_hierarchy.pdf", dpi=300, facecolor=WHITE)
-    fig.savefig(RESULTS / "figures/figure_semantic_hierarchy.png", dpi=300, facecolor=WHITE)
+    fig.text(0.623, 0.965, "b", fontsize=8, fontweight="bold")
+    fig.text(0.623, 0.425, "c", fontsize=8, fontweight="bold")
+    fig.savefig(FIGURE.with_suffix(".pdf"), dpi=300, facecolor=WHITE)
+    fig.savefig(FIGURE.with_suffix(".png"), dpi=300, facecolor=WHITE)
     plt.close(fig)
 
-    outputs = [PAPER_POINTS, JOURNALS, AREAS, EDGES_OUT,
-               RESULTS / "figures/figure_semantic_hierarchy.pdf",
-               RESULTS / "figures/figure_semantic_hierarchy.png"]
+    outputs = [PAPER_POINTS, JOURNALS, AREAS, EDGES_OUT, YEAR_SOURCE,
+               FIGURE.with_suffix(".pdf"), FIGURE.with_suffix(".png")]
     for path in outputs:
         if not path.is_file() or path.stat().st_size == 0:
             raise FileNotFoundError(f"expected nonempty output at {path}")

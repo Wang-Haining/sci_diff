@@ -1218,8 +1218,10 @@ def main():
     check_budget()
     FIGURES.mkdir(parents=True, exist_ok=True)
     SOURCE_DATA.mkdir(parents=True, exist_ok=True)
-    for name in FIGURE_NAMES + ["figure3_modifiers", "figure4_domains_time",
-                                "figure3_boundaries_modifiers", "figure4_network"]:
+    protected_redesigns = {"figure2_main_results", "figure3_network"}
+    for name in [name for name in FIGURE_NAMES if name not in protected_redesigns] + [
+            "figure3_modifiers", "figure4_domains_time",
+            "figure3_boundaries_modifiers", "figure4_network"]:
         for suffix in ("pdf", "png"):
             path = FIGURES / f"{name}.{suffix}"
             if path.exists():
@@ -1272,8 +1274,12 @@ def main():
     write_source("SourceData_Figure1.csv", figure1_source, "Figure 1", "a-d",
                  "qss_v2/journal_year_scope.parquet;artifacts/qss_v2/run_exposure.json;"
                  "results/qss_v3/network_nodes.csv")
-    figure2_source, new_paths = figure2(estimates)
-    paths += new_paths
+    figure2_source = pd.concat([
+        pd.DataFrame([estimate_row(estimates, "primary", name) for name in
+                      ("total_citations", "near", "intermediate", "far")]),
+        pd.DataFrame([estimate_row(estimates, "primary", "far_to_near_routing"),
+                      estimate_row(estimates, "primary", "any_far")]),
+    ], ignore_index=True)
     write_source("SourceData_Figure2.csv", figure2_source, "Figure 2", "a-d",
                  "results/qss_v3/dirty_estimates.csv")
     figure3_source, new_paths = figure3(estimates, same_author)
@@ -1282,7 +1288,6 @@ def main():
                  "results/qss_v3/dirty_estimates.csv")
     write_source("SourceData_Figure4_same_author.csv", same_author,
                  "Figure 4", "b", "results/qss_v3/same_author_sensitivity.csv")
-    paths += figure3_network(nodes, edges, metrics)
     domain_names = labels.set_index("qwen_macro").display_label
     source_nodes = nodes.rename(columns={"qwen_macro": "internal_domain_id"})
     source_edges = edges.rename(columns={
