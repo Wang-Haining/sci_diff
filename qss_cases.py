@@ -78,7 +78,7 @@ areas AS (
 )
 SELECT f.case_rank,l.display_label,f.* EXCLUDE(case_rank,pair_rank)
 FROM final f JOIN read_csv_auto('{LABELS}') l USING(qwen_macro)
-WHERE f.case_rank<=4 ORDER BY f.case_rank
+WHERE f.case_rank<=8 ORDER BY f.case_rank
 """
 
 JOIN_OUTCOMES = f"""
@@ -130,15 +130,15 @@ def main():
     qc = con.execute(f"SELECT count(*),count(DISTINCT qwen_macro),min(shared_n),min(overlap),"
                      f"max(prestige_gap),max(broad_treatment_rate),min(narrow_treatment_rate) "
                      f"FROM read_csv_auto('{SELECTION}')").fetchone()
-    if qc[0:2] != (4, 4) or qc[2] < 250 or qc[3] < 0.20 or qc[4] > 0.50 \
+    if qc[0:2] != (8, 8) or qc[2] < 250 or qc[3] < 0.20 or qc[4] > 0.50 \
             or qc[5] > 0.10 or qc[6] < 0.90:
-        raise ValueError(f"expected four unique eligible cases, got {qc}")
+        raise ValueError(f"expected eight unique eligible cases, got {qc}")
     selection_sha256 = file_sha256(SELECTION)
     copy_csv(con, CASES, JOIN_OUTCOMES)
     out = con.execute(f"SELECT count(*),count(DISTINCT qwen_macro),min(score_n),"
                       f"max(abs(score_n-subgroup_n)) "
                       f"FROM read_csv_auto('{CASES}')").fetchone()
-    if out[0:2] != (4, 4) or out[2] <= 0 or out[3] != 0:
+    if out[0:2] != (8, 8) or out[2] <= 0 or out[3] != 0:
         raise ValueError(f"case outcome join failed: {out}")
     run = write_run("cases", {"selected_cases": qc[0], "case_rows": out[0]},
                     {"selection_sha256": selection_sha256,
