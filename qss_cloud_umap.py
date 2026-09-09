@@ -26,11 +26,12 @@ EXPECTED_ELIGIBLE = 7_617_662
 def main():
     con = connect()
     qcols = ",".join(f"q.qpc{i:02d}" for i in range(1, 33))
+    qsel = "id, qwen_leaf, qwen_macro, " + ",".join(f"qpc{i:02d}" for i in range(1, 33))
     frame = con.execute(f"""
       WITH qwen AS (
-        SELECT * FROM read_parquet('{QWEN_V2}')
+        SELECT {qsel} FROM read_parquet('{QWEN_V2}')
         UNION ALL
-        SELECT * FROM read_parquet('{path_glob(QWEN_V3)}')
+        SELECT {qsel} FROM read_parquet('{path_glob(QWEN_V3)}')
       ),
       base AS (
         SELECT a.id, a.treatment, q.qwen_macro, q.qwen_leaf, {qcols},
