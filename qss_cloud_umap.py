@@ -30,8 +30,6 @@ def main():
     frame = con.execute(f"""
       WITH qwen AS (
         SELECT {qsel} FROM read_parquet('{QWEN_V2}')
-        UNION ALL
-        SELECT {qsel} FROM read_parquet('{path_glob(QWEN_V3)}')
       ),
       base AS (
         SELECT a.id, a.treatment, q.qwen_macro, q.qwen_leaf, {qcols},
@@ -46,8 +44,9 @@ def main():
       FROM base WHERE (h % 10000) < {int(SAMPLE_FRACTION * 10000)}
     """).df()
     n_total = int(frame.n_total.iloc[0])
-    if n_total != EXPECTED_ELIGIBLE:
-        raise ValueError(f"expected {EXPECTED_ELIGIBLE:,} eligible papers, got {n_total:,}")
+    if n_total < 0.99 * EXPECTED_ELIGIBLE:
+        raise ValueError(f"Qwen v2 components cover only {n_total:,} of {EXPECTED_ELIGIBLE:,} eligible papers")
+    log(f"Qwen v2 components cover {n_total:,} of {EXPECTED_ELIGIBLE:,} eligible papers")
     frame = frame.drop(columns="n_total")
     log(f"sampled {len(frame):,} papers; status counts {frame.status.value_counts().to_dict()}")
 
@@ -63,7 +62,7 @@ def main():
     medians = out.groupby("qwen_macro")[["umap_x", "umap_y"]].median().reset_index()
     medians["n_sampled"] = out.groupby("qwen_macro").size().values
     medians.to_csv(RESULTS / "cloud_umap_area_medians.csv", index=False)
-    write_run("cloud_umap", {"sampled": len(out), "eligible": n_total},
+    write_run("cloud_umap", {"sampled": len(out), "eligible": EXPECTED_ELIGIBLE, "with_components": n_total},
               {"sample_fraction": SAMPLE_FRACTION,
                "umap": {"n_neighbors": 30, "min_dist": 0.08, "metric": "euclidean",
                         "input": "qpc01-qpc32", "random_state": "unseeded (parallel)"},
