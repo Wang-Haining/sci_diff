@@ -38,8 +38,8 @@ def main():
              d.semantic_distance, e.source_leaf = e.target_leaf AS same_leaf
       FROM network_eligible_edges e JOIN leaf_distances d USING (source_leaf, target_leaf)
     """)
-    # Bin edges: same-leaf pairs form bin 0; other pairs are cut at pooled IPW-weighted
-    # quantiles of distance so every bin carries comparable weight.
+    # Same-leaf pairs form bin 0; remaining bins use pooled, unweighted edge-distance
+    # quantiles. IPW enters the citation shares below, not the cutpoints.
     qs = np.linspace(0, 1, N_BINS + 1)[1:-1]
     cuts = con.execute(f"""
       SELECT {", ".join(f"quantile_cont(semantic_distance, {q}) " for q in qs)}
