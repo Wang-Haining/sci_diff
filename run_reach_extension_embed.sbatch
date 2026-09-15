@@ -13,6 +13,7 @@
 set -euo pipefail
 cd /home/g91p721/sci_diff
 export PYTHONUNBUFFERED=1
+export TORCH_DISABLE_NATIVE_JIT=1
 export HF_HOME=/home/group/jasonclark/g91p721/sci_diff/huggingface
 source /home/group/jasonclark/g91p721/sci_diff/qss_venv/bin/activate
 torchrun --standalone --nproc_per_node=4 reach_extension_embed.py
